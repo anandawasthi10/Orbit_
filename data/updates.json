@@ -1,0 +1,38 @@
+[
+  {
+    "_id": "update-sample-1",
+    "id": "update-sample-1",
+    "author": "671a53ff-505e-4e47-b75c-13963477cfdb",
+    "message": "Completed NextAuth credentials integration & JWT session cookies with header size optimization 🚀",
+    "type": "progress",
+    "createdAt": "2026-08-16T16:32:13.930Z",
+    "updatedAt": "2026-08-16T16:32:13.931Z"
+  },
+  {
+    "_id": "update-sample-2",
+    "id": "update-sample-2",
+    "author": "671a53ff-505e-4e47-b75c-13963477cfdb",
+    "message": "Built interactive 3-column drag-and-drop Kanban board with assigned member status controls 🎨",
+    "type": "progress",
+    "createdAt": "2026-08-16T13:32:13.932Z",
+    "updatedAt": "2026-08-16T13:32:13.932Z"
+  },
+  {
+    "_id": "update-sample-3",
+    "id": "update-sample-3",
+    "author": "671a53ff-505e-4e47-b75c-13963477cfdb",
+    "message": "Waiting on local MongoDB connection timeout fallback verification ⏳",
+    "type": "blocker",
+    "createdAt": "2026-08-16T10:32:13.932Z",
+    "updatedAt": "2026-08-16T10:32:13.932Z"
+  },
+  {
+    "_id": "update-sample-4",
+    "id": "update-sample-4",
+    "author": "671a53ff-505e-4e47-b75c-13963477cfdb",
+    "message": "Orbit platform demo release scheduled for workspace member onboarding 📢",
+    "type": "announcement",
+    "createdAt": "2026-08-15T18:32:13.932Z",
+    "updatedAt": "2026-08-15T18:32:13.932Z"
+  }
+]

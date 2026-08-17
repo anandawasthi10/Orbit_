@@ -1,0 +1,46 @@
+[
+  {
+    "_id": "671a53ff-505e-4e47-b75c-13963477cfdb",
+    "name": "Anand Awasthi",
+    "email": "anandawasthi610@gmail.com",
+    "password": "$2a$10$em6gxiNXoqAUXV7nRAlulO65ebScda9lo6MOBJzc2qLx6w/22L6Mq",
+    "role": "Team Leader",
+    "avatarUrl": "/uploads/avatar-671a53ff-505e-4e47-b75c-13963477cfdb.jpg?v=1786895601035",
+    "bio": "Team Lead & Technical Lead for SIH | B.Tech CSE Student | Leading the team, managing development, and turning ideas into practical solutions. 🚀",
+    "skills": [
+      "React.js",
+      "JavaScript",
+      "TypeScript",
+      "HTML",
+      "CSS",
+      "Tailwind CSS",
+      "Node.js",
+      "Express.js",
+      "REST APIs",
+      "MongoDB",
+      "MySQL",
+      "Git",
+      "GitHub",
+      "UI/UX",
+      "AI-Assisted Development"
+    ],
+    "completionPercent": 100,
+    "profileComplete": true,
+    "createdAt": "2026-08-16T15:27:54.342Z",
+    "updatedAt": "2026-08-17T10:03:04.109Z"
+  },
+  {
+    "_id": "c2bb652a-0b25-4883-b956-b592dab6f8eb",
+    "name": "Test User",
+    "email": "testuser123@example.com",
+    "password": "$2a$10$VtudeZZF8NNz8LfHTDyEw.m6W2VlUSN8iGm3HiGWQPohT3VXeyDQq",
+    "role": "Team Member",
+    "avatarUrl": "",
+    "bio": "",
+    "skills": [],
+    "completionPercent": 0,
+    "profileComplete": false,
+    "createdAt": "2026-08-17T15:46:49.896Z",
+    "updatedAt": "2026-08-17T15:46:49.896Z"
+  }
+]

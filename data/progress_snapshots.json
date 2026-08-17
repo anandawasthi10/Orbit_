@@ -1,0 +1,47 @@
+[
+  {
+    "_id": "snap-1",
+    "dateStr": "2026-08-10",
+    "date": "2026-08-10T00:00:00.000Z",
+    "plannedPercent": 0,
+    "actualPercent": 12,
+    "createdAt": "2026-08-10T00:00:00.000Z",
+    "updatedAt": "2026-08-10T00:00:00.000Z"
+  },
+  {
+    "_id": "snap-2",
+    "dateStr": "2026-08-12",
+    "date": "2026-08-12T00:00:00.000Z",
+    "plannedPercent": 13,
+    "actualPercent": 25,
+    "createdAt": "2026-08-12T00:00:00.000Z",
+    "updatedAt": "2026-08-12T00:00:00.000Z"
+  },
+  {
+    "_id": "snap-3",
+    "dateStr": "2026-08-14",
+    "date": "2026-08-14T00:00:00.000Z",
+    "plannedPercent": 27,
+    "actualPercent": 33,
+    "createdAt": "2026-08-14T00:00:00.000Z",
+    "updatedAt": "2026-08-14T00:00:00.000Z"
+  },
+  {
+    "_id": "snap-4",
+    "dateStr": "2026-08-16",
+    "date": "2026-08-16T00:00:00.000Z",
+    "plannedPercent": 45,
+    "actualPercent": 0,
+    "createdAt": "2026-08-16T00:00:00.000Z",
+    "updatedAt": "2026-08-17T18:11:36.568Z"
+  },
+  {
+    "_id": "snap-5",
+    "dateStr": "2026-08-17",
+    "date": "2026-08-17T00:00:00.000Z",
+    "plannedPercent": 47,
+    "actualPercent": 40,
+    "createdAt": "2026-08-17T00:00:00.000Z",
+    "updatedAt": "2026-08-17T00:00:00.000Z"
+  }
+]

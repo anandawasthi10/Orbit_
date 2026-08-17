@@ -1,0 +1,62 @@
+@import url('https://fonts.googleapis.com/css2?family=Merriweather:ital,opsz,wght@0,18..144,300..900;1,18..144,300..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --sidebar-bg: #0B1120;
+  --content-bg: #F7F8FA;
+  --card-bg: #FFFFFF;
+  --accent: #2563EB;
+  --accent-hover: #1D4ED8;
+  --accent-green: #16A34A;
+  --accent-purple: #7C3AED;
+  --accent-orange: #EA580C;
+  --text-primary: #0F172A;
+  --text-secondary: #64748B;
+  --border: #E2E8F0;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--content-bg);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom SaaS Card Utility */
+.saas-card {
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+  border-radius: 0.75rem; /* 12px */
+}
+
+.saas-btn-primary, .btn-primary {
+  background-color: #2563eb;
+  color: #ffffff;
+  font-weight: 700;
+  transition: all 0.2s ease-in-out;
+}
+
+.saas-btn-primary:hover, .btn-primary:hover {
+  background-color: #1d4ed8;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+}
+
+.saas-input {
+  background-color: #ffffff;
+  border: 1px solid #94a3b8;
+  color: #0f172a;
+  font-weight: 500;
+  transition: border-color 0.15s ease-in-out;
+}
+
+.saas-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
