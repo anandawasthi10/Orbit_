@@ -1,0 +1,34 @@
+[debug] [2026-08-18T18:06:48.895Z] ----------------------------------------------------------------------
+[debug] [2026-08-18T18:06:48.897Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\darkt\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy
+[debug] [2026-08-18T18:06:48.897Z] CLI Version:   15.22.4
+[debug] [2026-08-18T18:06:48.897Z] Platform:      win32
+[debug] [2026-08-18T18:06:48.897Z] Node Version:  v24.9.0
+[debug] [2026-08-18T18:06:48.897Z] Detected Agent: unknown
+[debug] [2026-08-18T18:06:48.897Z] Time:          Tue Aug 18 2026 23:36:48 GMT+0530 (India Standard Time)
+[debug] [2026-08-18T18:06:48.897Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-08-18T18:07:44.899Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-08-18T18:07:44.900Z] > authorizing via signed-in user (tarunagnihotri534@gmail.com)
+[debug] [2026-08-18T18:07:44.900Z] [iam] checking project orbit-82b1a for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2026-08-18T18:07:44.901Z] Checked if tokens are valid: false, expires at: 1784047481667
+[debug] [2026-08-18T18:07:44.901Z] Checked if tokens are valid: false, expires at: 1784047481667
+[debug] [2026-08-18T18:07:44.902Z] > refreshing access token with scopes: []
+[debug] [2026-08-18T18:07:44.903Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-08-18T18:07:44.904Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-08-18T18:06:53.488Z] ----------------------------------------------------------------------
+[debug] [2026-08-18T18:06:53.490Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\darkt\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy
+[debug] [2026-08-18T18:06:53.490Z] CLI Version:   15.22.4
+[debug] [2026-08-18T18:06:53.491Z] Platform:      win32
+[debug] [2026-08-18T18:06:53.491Z] Node Version:  v24.9.0
+[debug] [2026-08-18T18:06:53.491Z] Detected Agent: unknown
+[debug] [2026-08-18T18:06:53.491Z] Time:          Tue Aug 18 2026 23:36:53 GMT+0530 (India Standard Time)
+[debug] [2026-08-18T18:06:53.491Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-08-18T18:07:44.903Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-08-18T18:07:44.903Z] > authorizing via signed-in user (tarunagnihotri534@gmail.com)
+[debug] [2026-08-18T18:07:44.903Z] [iam] checking project orbit-82b1a for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2026-08-18T18:07:44.904Z] Checked if tokens are valid: false, expires at: 1784047481667
+[debug] [2026-08-18T18:07:44.904Z] Checked if tokens are valid: false, expires at: 1784047481667
+[debug] [2026-08-18T18:07:44.905Z] > refreshing access token with scopes: []
+[debug] [2026-08-18T18:07:44.906Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-08-18T18:07:44.907Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]

@@ -6,7 +6,8 @@
     "dev": "node --max-http-header-size=1048576 ./node_modules/next/dist/bin/next dev",
     "build": "node --max-http-header-size=1048576 ./node_modules/next/dist/bin/next build",
     "start": "node --max-http-header-size=1048576 ./node_modules/next/dist/bin/next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "deploy:firebase": "npx firebase deploy"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

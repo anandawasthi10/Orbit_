@@ -13,10 +13,14 @@ import {
 } from 'lucide-react';
 import HeroLogo3D from '@/components/HeroLogo3D';
 import TechStackMarquee from '@/components/TechStackMarquee';
+import TechDoodleBackground from '@/components/TechDoodleBackground';
 
 export default function HomePage() {
   return (
     <div className="py-4 sm:py-6 space-y-12 relative overflow-hidden">
+      {/* WhatsApp-style Tileable Tech Doodle Background */}
+      <TechDoodleBackground />
+
       {/* Ambient Depth Background & Soft Floating Teamwork Icons */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden -z-10 rounded-3xl">
         <svg

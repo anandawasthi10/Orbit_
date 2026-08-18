@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import Link from 'next/link';
-import { LogIn, Mail, Lock, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
+import { LogIn, Mail, Lock, ArrowRight, AlertCircle, Loader2, ExternalLink, ShieldCheck } from 'lucide-react';
 import { auth, googleProvider, signInWithPopup } from '@/lib/firebase';
 
 export default function LoginPage() {
@@ -14,6 +14,7 @@ export default function LoginPage() {
     password: '',
   });
   const [error, setError] = useState('');
+  const [domainError, setDomainError] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
@@ -24,6 +25,7 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setDomainError(false);
     setLoading(true);
 
     try {
@@ -47,9 +49,10 @@ export default function LoginPage() {
     }
   };
 
-  // Google Sign-In
+  // Google Sign-In with Fallback & Domain Helper
   const handleGoogleLogin = async () => {
     setError('');
+    setDomainError(false);
     setGoogleLoading(true);
 
     try {
@@ -89,7 +92,8 @@ export default function LoginPage() {
     } catch (err: any) {
       console.error('Google Auth Error:', err);
       if (err.code === 'auth/unauthorized-domain' || err.message?.includes('unauthorized-domain')) {
-        setError('Google Sign-In Domain Setup Required: Add "orbitworkk.vercel.app" to Firebase Console -> Authentication -> Settings -> Authorized domains.');
+        setDomainError(true);
+        setError('Google Sign-In needs "orbitworkk.vercel.app" added under Firebase Console -> Authentication -> Settings -> Authorized domains.');
       } else if (auth.currentUser) {
         router.push('/dashboard');
       } else {
@@ -163,9 +167,22 @@ export default function LoginPage() {
         </div>
 
         {error && (
-          <div className="mb-5 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-semibold flex items-start gap-2.5">
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
-            <span className="leading-snug">{error}</span>
+          <div className="mb-5 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-medium space-y-2.5">
+            <div className="flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
+              <span className="leading-snug">{error}</span>
+            </div>
+            {domainError && (
+              <a
+                href="https://console.firebase.google.com/u/0/project/orbit-82b1a/authentication/providers"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 font-bold text-[11px] transition-colors"
+              >
+                <span>Open Firebase Authorized Domains</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
           </div>
         )}
 
