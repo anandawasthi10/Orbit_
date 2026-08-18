@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import Link from 'next/link';
-import { LogIn, Mail, Lock, ArrowRight, AlertCircle, Loader2, ShieldCheck } from 'lucide-react';
+import { LogIn, Mail, Lock, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
 import { auth, googleProvider, signInWithPopup } from '@/lib/firebase';
 
 export default function LoginPage() {
@@ -34,7 +34,7 @@ export default function LoginPage() {
       });
 
       if (res?.error) {
-        throw new Error(res.error || 'Invalid credentials');
+        throw new Error(res.error || 'Invalid email or password');
       }
 
       // Successful login -> redirect to dashboard
@@ -47,8 +47,8 @@ export default function LoginPage() {
     }
   };
 
-  // Member Google Authenticator Sign-In
-  const handleGoogleMemberLogin = async () => {
+  // Google Sign-In
+  const handleGoogleLogin = async () => {
     setError('');
     setGoogleLoading(true);
 
@@ -57,7 +57,7 @@ export default function LoginPage() {
       const user = result.user;
 
       if (!user || !user.email) {
-        throw new Error('Could not retrieve user details from Google Authenticator');
+        throw new Error('Could not retrieve user details from Google');
       }
 
       // Register or authenticate member with server
@@ -81,7 +81,7 @@ export default function LoginPage() {
       });
 
       if (authRes?.error && !signupRes.ok) {
-        throw new Error(authRes.error || 'Failed to authenticate member with Google');
+        throw new Error(authRes.error || 'Failed to authenticate with Google');
       }
 
       router.push('/dashboard');
@@ -89,57 +89,39 @@ export default function LoginPage() {
     } catch (err: any) {
       console.error('Google Auth Error:', err);
       if (err.code === 'auth/unauthorized-domain' || err.message?.includes('unauthorized-domain')) {
-        setError('Firebase Domain Authorization: Please add "orbitworkk.vercel.app" to Firebase Console -> Authentication -> Settings -> Authorized domains.');
+        setError('Firebase Domain Authorization: Please add "orbitworkk.vercel.app" in Firebase Console -> Authentication -> Settings -> Authorized domains.');
       } else if (auth.currentUser) {
         router.push('/dashboard');
       } else {
-        setError(err.message || 'Google Authenticator failed. Please try again.');
+        setError(err.message || 'Google Sign-In failed. Please try again.');
       }
     } finally {
       setGoogleLoading(false);
     }
   };
 
-  const handleQuickAdminLogin = () => {
-    setFormData({
-      email: 'admin@orbit.com',
-      password: 'admin123',
-    });
-  };
-
   return (
     <div className="w-full max-w-md">
       <div className="glass-card rounded-2xl p-8 shadow-2xl relative overflow-hidden bg-slate-900/95 border border-slate-800 text-white">
-        <div className="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl" />
-        <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl" />
+        <div className="absolute -top-24 -right-24 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl" />
+        <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl" />
 
-        <div className="text-center mb-6 relative z-10">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 mb-3 shadow-inner">
+        {/* Top Orbit Brand Icon & Header */}
+        <div className="text-center mb-7 relative z-10 space-y-2">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-600/10 text-blue-400 border border-blue-500/20 shadow-inner">
             <LogIn className="w-7 h-7" />
           </div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-white">Log in to Orbit</h1>
-          <p className="text-sm text-slate-400 mt-1">Access your workspace &amp; team dashboard</p>
+          <h1 className="text-2xl font-black tracking-tight text-white">Sign in to Orbit</h1>
+          <p className="text-xs text-slate-400 font-medium">Access your team workspace &amp; sprint dashboard</p>
         </div>
 
-        {/* Quick Admin Login Preset */}
-        <div className="mb-4 relative z-10">
-          <button
-            type="button"
-            onClick={handleQuickAdminLogin}
-            className="w-full py-2.5 px-4 rounded-xl bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 text-indigo-300 font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-xs group"
-          >
-            <ShieldCheck className="w-4 h-4 text-indigo-400 group-hover:scale-110 transition-transform" />
-            <span>Click to fill Admin Credentials (admin@orbit.com)</span>
-          </button>
-        </div>
-
-        {/* Google Authenticator for Members Only */}
-        <div className="mb-6 relative z-10">
+        {/* Google Authentication */}
+        <div className="mb-5 relative z-10">
           <button
             type="button"
             disabled={googleLoading}
-            onClick={handleGoogleMemberLogin}
-            className="w-full py-3 px-4 rounded-xl bg-white text-slate-900 hover:bg-slate-100 font-bold text-xs flex items-center justify-center gap-2.5 shadow-md transition-all disabled:opacity-50"
+            onClick={handleGoogleLogin}
+            className="w-full py-3 px-4 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs flex items-center justify-center gap-2.5 shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50"
           >
             {googleLoading ? (
               <>
@@ -148,7 +130,7 @@ export default function LoginPage() {
               </>
             ) : (
               <>
-                <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                <svg className="w-4.5 h-4.5 shrink-0" viewBox="0 0 24 24">
                   <path
                     fill="#4285F4"
                     d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -166,7 +148,7 @@ export default function LoginPage() {
                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                   />
                 </svg>
-                <span>Continue with Google Authenticator (Members Only)</span>
+                <span>Continue with Google</span>
               </>
             )}
           </button>
@@ -174,22 +156,22 @@ export default function LoginPage() {
           <div className="relative flex items-center justify-center my-4">
             <div className="border-t border-slate-800 w-full" />
             <span className="bg-slate-900 px-3 text-[10px] uppercase font-bold text-slate-500 shrink-0">
-              or sign in with password
+              or continue with email
             </span>
             <div className="border-t border-slate-800 w-full" />
           </div>
         </div>
 
         {error && (
-          <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-            <span>{error}</span>
+          <div className="mb-5 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-semibold flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
+            <span className="leading-snug">{error}</span>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4 relative z-10">
           <div>
-            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+            <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
               Email Address
             </label>
             <div className="relative">
@@ -200,14 +182,14 @@ export default function LoginPage() {
                 required
                 value={formData.email}
                 onChange={handleChange}
-                placeholder="alex@example.com or admin@orbit.com"
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950/80 border border-slate-700/80 text-white font-semibold placeholder:text-slate-500 text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                placeholder="alex@example.com"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950/80 border border-slate-700/80 text-white font-semibold placeholder:text-slate-500 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+            <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
               Password
             </label>
             <div className="relative">
@@ -219,7 +201,7 @@ export default function LoginPage() {
                 value={formData.password}
                 onChange={handleChange}
                 placeholder="••••••••"
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950/80 border border-slate-700/80 text-white font-semibold placeholder:text-slate-500 text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950/80 border border-slate-700/80 text-white font-semibold placeholder:text-slate-500 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
               />
             </div>
           </div>
@@ -227,7 +209,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full h-12 px-6 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-lg shadow-blue-600/30 hover:shadow-blue-600/40 active:scale-[0.99] transition-all flex items-center justify-between mt-6 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600 disabled:active:scale-100"
+            className="w-full h-11 px-6 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/30 hover:shadow-blue-600/40 active:scale-[0.99] transition-all flex items-center justify-between mt-5 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
               <div className="flex items-center justify-center gap-2 w-full">
@@ -236,17 +218,17 @@ export default function LoginPage() {
               </div>
             ) : (
               <>
-                <span className="flex-1 text-center pl-4">Log In to Workspace</span>
+                <span className="flex-1 text-center pl-4">Sign in to Workspace</span>
                 <ArrowRight className="w-4 h-4 shrink-0" />
               </>
             )}
           </button>
         </form>
 
-        <div className="mt-8 text-center text-xs text-slate-400 pt-6 border-t border-white/10">
-          Need a member account?{' '}
-          <Link href="/signup" className="text-indigo-400 hover:underline font-semibold">
-            Join Orbit
+        <div className="mt-7 text-center text-xs text-slate-400 pt-5 border-t border-slate-800">
+          Don&apos;t have a member account?{' '}
+          <Link href="/signup" className="text-blue-400 hover:underline font-bold">
+            Sign up
           </Link>
         </div>
       </div>
