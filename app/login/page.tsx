@@ -89,7 +89,7 @@ export default function LoginPage() {
     } catch (err: any) {
       console.error('Google Auth Error:', err);
       if (err.code === 'auth/unauthorized-domain' || err.message?.includes('unauthorized-domain')) {
-        setError('Firebase Domain Authorization: Please add "orbitworkk.vercel.app" in Firebase Console -> Authentication -> Settings -> Authorized domains.');
+        setError('Google Sign-In Domain Setup Required: Add "orbitworkk.vercel.app" to Firebase Console -> Authentication -> Settings -> Authorized domains.');
       } else if (auth.currentUser) {
         router.push('/dashboard');
       } else {
