@@ -15,6 +15,7 @@
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.18.0",
     "bcryptjs": "^2.4.3",
+    "firebase": "^12.17.1",
     "lucide-react": "^0.424.0",
     "mongoose": "^8.5.2",
     "next": "14.2.5",
