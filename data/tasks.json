@@ -1,1 +1,17 @@
-[]
+[
+  {
+    "_id": "190866df-39f2-4ea0-9848-dd5f380fe526",
+    "id": "190866df-39f2-4ea0-9848-dd5f380fe526",
+    "title": "Implement NextAuth JWT Sessions",
+    "description": "Add session persistence using NextAuth.js JWT callback",
+    "category": "Backend",
+    "assignedTo": "47c15f43-3a82-408e-a8d1-1b9a1a0bae47",
+    "assignedBy": "47c15f43-3a82-408e-a8d1-1b9a1a0bae47",
+    "projectId": "proj-sih-2026",
+    "priority": "medium",
+    "status": "submitted",
+    "deadline": null,
+    "createdAt": "2026-08-18T14:57:58.618Z",
+    "updatedAt": "2026-08-18T14:59:53.575Z"
+  }
+]

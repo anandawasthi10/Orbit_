@@ -1,0 +1,15 @@
+[
+  {
+    "_id": "63d7aa9c-811a-4818-862b-bddb5ee99512",
+    "id": "63d7aa9c-811a-4818-862b-bddb5ee99512",
+    "taskId": "190866df-39f2-4ea0-9848-dd5f380fe526",
+    "submittedBy": "47c15f43-3a82-408e-a8d1-1b9a1a0bae47",
+    "link": "https://github.com/tarun/orbit-auth-milestone",
+    "screenshotUrl": "",
+    "note": "Completed implementation. Please review.",
+    "status": "submitted",
+    "submittedAt": "2026-08-18T14:59:53.569Z",
+    "createdAt": "2026-08-18T14:59:53.569Z",
+    "updatedAt": "2026-08-18T14:59:53.569Z"
+  }
+]

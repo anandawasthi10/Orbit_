@@ -1,5 +1,24 @@
 [
   {
+    "_id": "admin-orbit-001",
+    "id": "admin-orbit-001",
+    "name": "Workspace Admin",
+    "email": "admin@orbit.com",
+    "password": "$2a$10$e74TfCjO2oU7eT0P7f2U0eM59YhT5b1Zz0v2w8x9y0z1a2b3c4d5e",
+    "role": "Admin",
+    "avatarUrl": "",
+    "bio": "System Workspace Administrator",
+    "skills": [
+      "Task Management",
+      "Team Leadership",
+      "Admin Panel"
+    ],
+    "completionPercent": 100,
+    "profileComplete": true,
+    "createdAt": "2026-08-10T00:00:00.000Z",
+    "updatedAt": "2026-08-10T00:00:00.000Z"
+  },
+  {
     "_id": "671a53ff-505e-4e47-b75c-13963477cfdb",
     "name": "Anand Awasthi",
     "email": "anandawasthi610@gmail.com",
@@ -42,5 +61,50 @@
     "profileComplete": false,
     "createdAt": "2026-08-17T15:46:49.896Z",
     "updatedAt": "2026-08-17T15:46:49.896Z"
+  },
+  {
+    "_id": "02741b4e-7dab-4a29-b54a-07043a9303b9",
+    "id": "02741b4e-7dab-4a29-b54a-07043a9303b9",
+    "name": "Tarun",
+    "email": "tarunagnihotri534@gmail.com",
+    "password": "$2a$10$IXfYf4orvnGzV7EVIRK54u0S2cGl/n8qrZev.bFzbAtjOBD7rFd4u",
+    "role": "Team Member",
+    "avatarUrl": "",
+    "bio": "",
+    "skills": [],
+    "completionPercent": 100,
+    "profileComplete": true,
+    "createdAt": "2026-08-18T06:22:03.545Z",
+    "updatedAt": "2026-08-18T06:23:24.424Z"
+  },
+  {
+    "_id": "47c15f43-3a82-408e-a8d1-1b9a1a0bae47",
+    "id": "47c15f43-3a82-408e-a8d1-1b9a1a0bae47",
+    "name": "Tarun Agnihotri",
+    "email": "tarun@gmail.com",
+    "password": "$2a$10$VSwU6fUrWpb85JjaHBRum.LAn5GlerXWinfyy38YrH224Z.BOz5TS",
+    "role": "Team Member",
+    "avatarUrl": "",
+    "bio": "",
+    "skills": [],
+    "completionPercent": 0,
+    "profileComplete": true,
+    "createdAt": "2026-08-18T14:54:00.777Z",
+    "updatedAt": "2026-08-18T14:54:00.777Z"
+  },
+  {
+    "_id": "7c698382-6d65-464d-afeb-4a07f2de67dc",
+    "id": "7c698382-6d65-464d-afeb-4a07f2de67dc",
+    "name": "TARUN AKUMAR AGNIHOTRI",
+    "email": "darktarunyt@gmail.com",
+    "password": "$2a$10$Uyh3X3L2logsWIr0K0L/quIU5HFPNhvxV6zEoNdLPjx9TZrYDdlu2",
+    "role": "Team Member",
+    "avatarUrl": "",
+    "bio": "",
+    "skills": [],
+    "completionPercent": 0,
+    "profileComplete": true,
+    "createdAt": "2026-08-18T15:31:38.686Z",
+    "updatedAt": "2026-08-18T15:31:38.686Z"
   }
 ]
