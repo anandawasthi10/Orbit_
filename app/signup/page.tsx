@@ -103,7 +103,9 @@ export default function SignupPage() {
       router.refresh();
     } catch (err: any) {
       console.error('Google Auth Signup Error:', err);
-      if (auth.currentUser) {
+      if (err.code === 'auth/unauthorized-domain' || err.message?.includes('unauthorized-domain')) {
+        setError('Firebase Domain Authorization: Please add "orbitworkk.vercel.app" to Firebase Console -> Authentication -> Settings -> Authorized domains.');
+      } else if (auth.currentUser) {
         router.push('/dashboard');
       } else {
         setError(err.message || 'Google Authenticator failed. Please try again.');
