@@ -103,10 +103,6 @@ function getFilePath(filename: string): string {
 }
 
 function safeReadJSON<T>(filename: string, defaultData: T = [] as any): T {
-  if (global.__orbit_memory_db__![filename]) {
-    return global.__orbit_memory_db__![filename] as T;
-  }
-
   try {
     const filePath = getFilePath(filename);
     if (fs.existsSync(filePath)) {
@@ -119,6 +115,10 @@ function safeReadJSON<T>(filename: string, defaultData: T = [] as any): T {
     }
   } catch (err: any) {
     console.error(`Error reading ${filename}:`, err.message);
+  }
+
+  if (global.__orbit_memory_db__![filename]) {
+    return global.__orbit_memory_db__![filename] as T;
   }
 
   // Fallback to seed in process.cwd()/data/ if exists
@@ -163,24 +163,40 @@ const DEFAULT_PROJECT: IProject = {
 };
 
 const DEFAULT_ADMIN_MEMBER: IMember = {
-  _id: 'admin-orbit-001',
-  id: 'admin-orbit-001',
-  name: 'Workspace Admin',
-  email: 'admin@orbit.com',
-  password: '$2a$10$e74TfCjO2oU7eT0P7f2U0eM59YhT5b1Zz0v2w8x9y0z1a2b3c4d5e',
+  _id: '671a53ff-505e-4e47-b75c-13963477cfdb',
+  id: '671a53ff-505e-4e47-b75c-13963477cfdb',
+  name: 'Anand Awasthi',
+  email: 'anandawasthi610@gmail.com',
+  password: '$2a$10$em6gxiNXoqAUXV7nRAlulO65ebScda9lo6MOBJzc2qLx6w/22L6Mq',
   role: 'Admin',
-  avatarUrl: '',
-  bio: 'System Workspace Administrator',
-  skills: ['Task Management', 'Team Leadership', 'Admin Panel'],
+  avatarUrl: '/uploads/avatar-671a53ff-505e-4e47-b75c-13963477cfdb.jpg?v=1786895601035',
+  bio: 'Team Lead & Technical Lead for SIH | B.Tech CSE Student | Leading the team, managing development, and turning ideas into practical solutions. 🚀',
+  skills: [
+    'React.js',
+    'JavaScript',
+    'TypeScript',
+    'HTML',
+    'CSS',
+    'Tailwind CSS',
+    'Node.js',
+    'Express.js',
+    'REST APIs',
+    'MongoDB',
+    'MySQL',
+    'Git',
+    'GitHub',
+    'UI/UX',
+    'AI-Assisted Development',
+  ],
   completionPercent: 100,
   profileComplete: true,
-  createdAt: '2026-08-10T00:00:00.000Z',
-  updatedAt: '2026-08-10T00:00:00.000Z',
+  createdAt: '2026-08-16T15:27:54.342Z',
+  updatedAt: '2026-08-17T10:03:04.109Z',
 };
 
 function readMembers(): IMember[] {
   const members = safeReadJSON<IMember[]>('members.json', [DEFAULT_ADMIN_MEMBER]);
-  if (!members.some((m) => m.email && m.email.toLowerCase() === 'admin@orbit.com')) {
+  if (!members.some((m) => m.email && m.email.toLowerCase() === 'anandawasthi610@gmail.com')) {
     members.unshift(DEFAULT_ADMIN_MEMBER);
   }
   return members;
@@ -468,6 +484,19 @@ export const FileMemberStore = {
     members[index] = updated;
     writeMembers(members);
     return formatMemberDoc(updated);
+  },
+
+  async findByIdAndDelete(id: string) {
+    if (!id) return false;
+    const members = readMembers();
+    const targetId = String(id);
+    const initialLen = members.length;
+    const filtered = members.filter((m) => String(m._id || m.id) !== targetId);
+    if (filtered.length === initialLen) {
+      return false;
+    }
+    writeMembers(filtered);
+    return true;
   },
 
   find(query?: any) {
@@ -1084,8 +1113,12 @@ export const FileUpdateStore = {
   },
 
   async findByIdAndDelete(id: string) {
+    if (!id) return false;
     const updates = readUpdates();
-    const filtered = updates.filter((u) => u._id !== id && u.id !== id);
+    const targetId = String(id);
+    const initialLen = updates.length;
+    const filtered = updates.filter((u) => String(u._id || u.id) !== targetId);
+    if (filtered.length === initialLen) return false;
     writeUpdates(filtered);
     return true;
   },

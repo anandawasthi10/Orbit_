@@ -19,18 +19,6 @@ export const authOptions: AuthOptions = {
 
         const inputEmail = credentials.email.toLowerCase().trim();
 
-        // Built-in Admin Credential Bypass
-        if (inputEmail === 'admin@orbit.com' && credentials.password === 'admin123') {
-          return {
-            id: 'admin-orbit-001',
-            name: 'Workspace Admin',
-            email: 'admin@orbit.com',
-            role: 'Admin',
-            avatarUrl: '',
-            profileComplete: true,
-          };
-        }
-
         await connectDB();
 
         const member = await Member.findOne({

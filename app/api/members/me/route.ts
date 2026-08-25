@@ -62,8 +62,19 @@ export async function PATCH(req: NextRequest) {
       completionPercent: 100,
     };
 
+    const currentEmail = ((session.user as any)?.email || '').toLowerCase();
+    const isCurrentAdmin = currentEmail === 'anandawasthi610@gmail.com' || ((session.user as any)?.role || '').toLowerCase().includes('admin');
+
     if (name !== undefined && name.trim() !== '') updateFields.name = name.trim();
-    if (role !== undefined) updateFields.role = role.trim();
+    if (role !== undefined) {
+      const sanitizedRole = role.trim();
+      // Only existing admins can assign admin role to themselves
+      if (sanitizedRole.toLowerCase().includes('admin') && !isCurrentAdmin) {
+        // Prevent unauthorized self-promotion to Admin
+      } else {
+        updateFields.role = sanitizedRole;
+      }
+    }
     if (bio !== undefined) updateFields.bio = bio.trim();
     updateFields.skills = parsedSkills;
 
@@ -73,19 +84,24 @@ export async function PATCH(req: NextRequest) {
         if (matches) {
           const rawExt = matches[1].toLowerCase();
           const ext = rawExt === 'jpeg' ? 'jpg' : rawExt;
-          const base64Data = matches[2];
-          const buffer = Buffer.from(base64Data, 'base64');
 
-          const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
-          if (!fs.existsSync(uploadsDir)) {
-            fs.mkdirSync(uploadsDir, { recursive: true });
+          // Security: Whitelist allowed image formats only
+          const allowedExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+          if (allowedExtensions.includes(ext)) {
+            const base64Data = matches[2];
+            const buffer = Buffer.from(base64Data, 'base64');
+
+            const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+            if (!fs.existsSync(uploadsDir)) {
+              fs.mkdirSync(uploadsDir, { recursive: true });
+            }
+
+            const fileName = `avatar-${(session.user as any).id}.${ext}`;
+            const filePath = path.join(uploadsDir, fileName);
+            fs.writeFileSync(filePath, buffer);
+
+            updateFields.avatarUrl = `/uploads/${fileName}?v=${Date.now()}`;
           }
-
-          const fileName = `avatar-${(session.user as any).id}.${ext}`;
-          const filePath = path.join(uploadsDir, fileName);
-          fs.writeFileSync(filePath, buffer);
-
-          updateFields.avatarUrl = `/uploads/${fileName}?v=${Date.now()}`;
         }
       } catch (err) {
         console.error('Error saving avatar image to disk:', err);

@@ -34,14 +34,5 @@
     "type": "announcement",
     "createdAt": "2026-08-15T18:32:13.932Z",
     "updatedAt": "2026-08-15T18:32:13.932Z"
-  },
-  {
-    "_id": "dc56b4fc-16c7-44c7-87b2-44f6f523a26d",
-    "id": "dc56b4fc-16c7-44c7-87b2-44f6f523a26d",
-    "author": "47c15f43-3a82-408e-a8d1-1b9a1a0bae47",
-    "message": "Implemented NextAuth JWT session storage and submitted task for review.",
-    "type": "progress",
-    "createdAt": "2026-08-18T15:02:36.138Z",
-    "updatedAt": "2026-08-18T15:02:36.138Z"
   }
 ]

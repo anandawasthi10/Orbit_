@@ -4,13 +4,21 @@ import connectDB from '@/lib/db';
 import Submission from '@/models/Submission';
 import Task from '@/models/Task';
 
+export const dynamic = 'force-dynamic';
+
+async function getParamId(props: { params: Promise<{ id: string }> | { id: string } }): Promise<string> {
+  const resolved = await Promise.resolve(props.params);
+  return resolved?.id || '';
+}
+
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
+    const id = await getParamId(props);
     await connectDB();
-    const submission = await Submission.findById(params.id);
+    const submission = await Submission.findById(id);
     if (!submission) {
       return NextResponse.json({ error: 'Submission not found' }, { status: 404 });
     }
@@ -26,14 +34,15 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
+    const id = await getParamId(props);
     const { status } = await req.json(); // 'approved' | 'rejected'
     await connectDB();
 
     const updatedSubmission = await Submission.findByIdAndUpdate(
-      params.id,
+      id,
       { status },
       { new: true }
     );

@@ -53,5 +53,15 @@
     "actualPercent": 0,
     "createdAt": "2026-08-18T14:48:54.740Z",
     "updatedAt": "2026-08-18T15:51:21.579Z"
+  },
+  {
+    "_id": "f78a99fe-69dd-4983-9808-dd393aca1a83",
+    "id": "f78a99fe-69dd-4983-9808-dd393aca1a83",
+    "dateStr": "2026-08-25",
+    "date": "2026-08-25T21:12:17.577Z",
+    "plannedPercent": 57,
+    "actualPercent": 0,
+    "createdAt": "2026-08-25T20:17:54.486Z",
+    "updatedAt": "2026-08-25T21:12:17.577Z"
   }
 ]

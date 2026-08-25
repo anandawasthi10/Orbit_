@@ -2,7 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { Send, Loader2, MessageSquare, Sparkles } from 'lucide-react';
+import {
+  Send,
+  Loader2,
+  MessageSquare,
+  Sparkles,
+  Trash2,
+  AlertTriangle,
+  CheckCircle2,
+} from 'lucide-react';
 import TopHeader from '@/components/TopHeader';
 import { IUpdate } from '@/types';
 
@@ -40,6 +48,16 @@ function AuthorAvatar({ src, name, size = 'w-9 h-9' }: { src?: string | null; na
 export default function DailyUpdatesPage() {
   const { data: session } = useSession();
   const user = session?.user as any;
+  const userRole = (user?.role || '').toLowerCase();
+  const userEmail = (user?.email || '').toLowerCase();
+
+  const isAdmin =
+    userEmail === 'anandawasthi610@gmail.com' ||
+    userRole.includes('admin') ||
+    userRole.includes('lead') ||
+    userRole.includes('manager') ||
+    userRole.includes('ceo') ||
+    userRole.includes('founder');
 
   const [updates, setUpdates] = useState<IUpdate[]>([]);
   const [message, setMessage] = useState('');
@@ -48,20 +66,31 @@ export default function DailyUpdatesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    async function fetchUpdates() {
-      try {
-        const res = await fetch('/api/updates');
-        if (!res.ok) throw new Error('Failed to fetch daily updates');
-        const data = await res.json();
-        setUpdates(data);
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    }
+  // Delete State
+  const [updateToDelete, setUpdateToDelete] = useState<IUpdate | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  const showToast = (text: string, toastType: 'success' | 'error' = 'success') => {
+    setToastMsg({ text, type: toastType });
+    setTimeout(() => setToastMsg(null), 3500);
+  };
+
+  const fetchUpdates = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/updates');
+      if (!res.ok) throw new Error('Failed to fetch daily updates');
+      const data = await res.json();
+      setUpdates(Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchUpdates();
   }, []);
 
@@ -83,10 +112,32 @@ export default function DailyUpdatesPage() {
       setUpdates((prev) => [newEntry, ...prev]);
       setMessage('');
       setType('general');
+      showToast('Daily update posted successfully!');
     } catch (err: any) {
-      alert(err.message);
+      showToast(err.message, 'error');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDeleteUpdate = async () => {
+    if (!updateToDelete) return;
+    const id = updateToDelete._id || updateToDelete.id;
+    if (!id) return;
+
+    setDeletingId(String(id));
+    try {
+      const res = await fetch(`/api/updates/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete update');
+
+      setUpdates((prev) => prev.filter((u) => String(u._id || u.id) !== String(id)));
+      showToast('Update deleted successfully.');
+      setUpdateToDelete(null);
+    } catch (err: any) {
+      showToast(err.message, 'error');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -108,6 +159,22 @@ export default function DailyUpdatesPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      {/* Toast Notification */}
+      {toastMsg && (
+        <div
+          className={`fixed top-5 right-5 z-50 px-4 py-3 rounded-xl shadow-xl flex items-center gap-2.5 text-xs font-bold animate-in fade-in slide-in-from-top-4 duration-200 ${
+            toastMsg.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'
+          }`}
+        >
+          {toastMsg.type === 'success' ? (
+            <CheckCircle2 className="w-4 h-4" />
+          ) : (
+            <AlertTriangle className="w-4 h-4" />
+          )}
+          <span>{toastMsg.text}</span>
+        </div>
+      )}
+
       {/* Top Header Bar */}
       <TopHeader
         title="Daily Updates"
@@ -198,7 +265,7 @@ export default function DailyUpdatesPage() {
         )}
 
         {!loading && !error && updates.length === 0 && (
-          <div className="saas-card rounded-xl p-12 text-center bg-white space-y-3">
+          <div className="saas-card rounded-xl p-12 text-center bg-white space-y-3 border border-slate-200">
             <MessageSquare className="w-8 h-8 text-slate-400 mx-auto" />
             <h4 className="text-sm font-bold text-slate-800">No updates yet</h4>
             <p className="text-xs text-slate-600 font-medium">Be the first teammate to share a progress update today!</p>
@@ -208,21 +275,25 @@ export default function DailyUpdatesPage() {
         {!loading && !error && updates.length > 0 && (
           <div className="space-y-3">
             {updates.map((item) => {
+              const itemId = item._id || item.id;
               const typeConfig = TYPE_CONFIG[item.type || 'general'] || TYPE_CONFIG.general;
               const authorObj = typeof item.author === 'object' ? item.author : null;
               const authorName = authorObj?.name || 'Teammate';
               const authorRole = authorObj?.role || 'Member';
               const authorAvatar = authorObj?.avatarUrl || '';
+              const authorId = String(authorObj?._id || authorObj?.id || item.author || '');
+              const isCurrentAuthor = authorId && user?.id && authorId === String(user.id);
+              const canDelete = isAdmin || isCurrentAuthor;
 
               return (
                 <div
-                  key={item._id || item.id}
-                  className="saas-card rounded-xl p-4 flex items-start gap-3.5 bg-white border border-slate-200/80 shadow-sm hover:border-blue-300 transition-all"
+                  key={itemId}
+                  className="saas-card rounded-xl p-4 flex items-start gap-3.5 bg-white border border-slate-200/80 shadow-sm hover:border-blue-300 transition-all group relative"
                 >
                   <AuthorAvatar src={authorAvatar} name={authorName} />
 
-                  <div className="flex-1 space-y-1">
-                    <div className="flex items-center justify-between">
+                  <div className="flex-1 space-y-1 min-w-0 pr-6">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-slate-900">{authorName}</span>
                         <span className="text-[11px] text-slate-600 font-semibold">({authorRole})</span>
@@ -243,12 +314,61 @@ export default function DailyUpdatesPage() {
                       {item.message}
                     </p>
                   </div>
+
+                  {/* Delete Update Button (Visible on Hover for Admin or Author) */}
+                  {canDelete && (
+                    <button
+                      type="button"
+                      onClick={() => setUpdateToDelete(item)}
+                      className="absolute top-3 right-3 p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 border border-transparent hover:border-red-200 transition-all opacity-0 group-hover:opacity-100"
+                      title="Delete Update"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               );
             })}
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {updateToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl p-6 shadow-2xl max-w-sm w-full space-y-4 border border-red-100 animate-in fade-in zoom-in-95 duration-150">
+            <div className="w-12 h-12 rounded-full bg-red-50 border border-red-200 flex items-center justify-center mx-auto text-red-600">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <div className="text-center space-y-1">
+              <h3 className="text-base font-bold text-slate-900">Delete Update?</h3>
+              <p className="text-xs text-slate-600">
+                Are you sure you want to remove this update from the activity feed?
+              </p>
+              <p className="text-[11px] text-red-600 font-medium">This action cannot be undone.</p>
+            </div>
+            <div className="flex gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => setUpdateToDelete(null)}
+                disabled={Boolean(deletingId)}
+                className="flex-1 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteUpdate}
+                disabled={Boolean(deletingId)}
+                className="flex-1 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold flex items-center justify-center gap-1.5"
+              >
+                {deletingId ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                {deletingId ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

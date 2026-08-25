@@ -91,6 +91,14 @@ const Member: any = {
     return MongooseMember.findByIdAndUpdate(id, update, options);
   },
 
+  async findByIdAndDelete(id: string) {
+    await connectDB();
+    if (isFallbackMode()) {
+      return FileMemberStore.findByIdAndDelete(id);
+    }
+    return MongooseMember.findByIdAndDelete(id);
+  },
+
   find(query?: any) {
     if (isFallbackMode()) {
       return FileMemberStore.find(query);

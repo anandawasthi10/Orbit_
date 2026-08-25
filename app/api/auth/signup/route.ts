@@ -38,12 +38,18 @@ export async function POST(req: NextRequest) {
     // Hash password with 10 salt rounds
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create new Member with designated role
+    // Security: Prevent arbitrary assignment of Admin privilege from public signup
+    let assignedRole = role ? role.trim() : 'Team Member';
+    if (assignedRole.toLowerCase().includes('admin') && normalizedEmail !== 'anandawasthi610@gmail.com') {
+      assignedRole = 'Team Member';
+    }
+
+    // Create new Member with safe role
     const member = await Member.create({
       name: name.trim(),
       email: normalizedEmail,
       password: hashedPassword,
-      role: role || 'Team Member',
+      role: assignedRole,
       profileComplete: true,
     });
 

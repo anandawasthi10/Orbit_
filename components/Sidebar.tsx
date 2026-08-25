@@ -14,6 +14,7 @@ import {
   LogOut,
   User,
   UserPlus,
+  ShieldCheck,
 } from 'lucide-react';
 
 interface UserAvatarProps {
@@ -64,7 +65,9 @@ export default function Sidebar() {
   }, [user]);
 
   const userRole = profileRole || user?.role || 'Member';
+  const userEmail = (user?.email || '').toLowerCase();
   const isAdmin =
+    userEmail === 'anandawasthi610@gmail.com' ||
     userRole.toLowerCase().includes('admin') ||
     userRole.toLowerCase().includes('lead') ||
     userRole.toLowerCase().includes('manager') ||
@@ -75,6 +78,7 @@ export default function Sidebar() {
   const navItems = isAdmin
     ? [
         { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+        { label: 'Admin Control', href: '/admin', icon: ShieldCheck },
         { label: 'Team Workspace', href: '/teams', icon: UserPlus },
         { label: 'Member Directory', href: '/team', icon: Users },
         { label: 'Task Manager', href: '/tasks', icon: CheckSquare },
@@ -92,9 +96,31 @@ export default function Sidebar() {
       ];
 
   return (
-    <aside className="w-60 bg-[#0B1120] text-slate-300 flex flex-col shrink-0 h-screen sticky top-0 border-r border-slate-800/60 z-40 overflow-hidden">
+    <aside className="w-60 bg-[#0B1120] text-slate-300 flex flex-col shrink-0 h-screen sticky top-0 border-r border-slate-800/60 z-40 overflow-hidden relative">
+      {/* Planet Background Image */}
+      <div className="absolute inset-0 pointer-events-none z-0 select-none overflow-hidden">
+        <img
+          src="/images/orbit-planet-bg.png"
+          alt=""
+          className="absolute opacity-30"
+          style={{
+            width: '280px',
+            height: '420px',
+            bottom: '60px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            objectFit: 'cover',
+            objectPosition: 'center center',
+            maskImage: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.5) 35%, transparent 65%)',
+            WebkitMaskImage: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.5) 35%, transparent 65%)',
+          }}
+        />
+        {/* Subtle blue glow at bottom */}
+        <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-blue-950/30 via-blue-900/10 to-transparent" />
+      </div>
+
       {/* Top Logo & Title */}
-      <div className="p-4 border-b border-slate-800/60 shrink-0">
+      <div className="p-4 border-b border-slate-800/60 shrink-0 relative z-10">
         <Link href={user ? '/dashboard' : '/'} className="flex items-center gap-3 group">
           <div className="relative w-10 h-10 rounded-xl bg-slate-900/90 border border-blue-500/30 flex items-center justify-center p-1 shadow-[0_0_12px_rgba(37,99,235,0.35)] shrink-0 group-hover:scale-105 group-hover:border-blue-400/50 transition-all duration-200">
             <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_6px_#60a5fa]" />
@@ -116,7 +142,7 @@ export default function Sidebar() {
       </div>
 
       {/* Main Navigation Links */}
-      <nav className="flex-1 px-3 py-3 space-y-1 overflow-y-auto">
+      <nav className="flex-1 px-3 py-3 space-y-1 overflow-y-auto relative z-10">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
@@ -125,14 +151,27 @@ export default function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all group ${
                 isActive
                   ? 'bg-[#2563EB] text-white shadow-md shadow-blue-500/20'
                   : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
               }`}
             >
-              <Icon className={`w-4.5 h-4.5 ${isActive ? 'text-white' : 'text-slate-300'}`} />
-              <span>{item.label}</span>
+              <div className="flex items-center gap-3 min-w-0">
+                <Icon className={`w-4.5 h-4.5 shrink-0 ${isActive ? 'text-white' : 'text-slate-300 group-hover:text-white'}`} />
+                <span className="truncate">{item.label}</span>
+              </div>
+              {(item as any).badge && (
+                <span
+                  className={`text-[9px] font-black px-1.5 py-0.2 rounded-md uppercase tracking-wider shrink-0 ${
+                    isActive
+                      ? 'bg-white/25 text-white'
+                      : 'bg-purple-500/20 text-purple-300 border border-purple-400/30'
+                  }`}
+                >
+                  {(item as any).badge}
+                </span>
+              )}
             </Link>
           );
         })}
@@ -140,7 +179,7 @@ export default function Sidebar() {
 
       {/* Bottom User Account Panel */}
       {user ? (
-        <div className="p-3 border-t border-slate-800/80 mt-auto bg-slate-950/40 shrink-0">
+        <div className="p-3 border-t border-slate-800/80 mt-auto bg-slate-950/40 shrink-0 relative z-10">
           <div className="flex items-center justify-between p-2 rounded-xl">
             <Link
               href="/onboarding"
@@ -169,7 +208,7 @@ export default function Sidebar() {
           </div>
         </div>
       ) : (
-        <div className="p-4 border-t border-slate-800/80 mt-auto shrink-0">
+        <div className="p-4 border-t border-slate-800/80 mt-auto shrink-0 relative z-10">
           <Link
             href="/login"
             className="w-full saas-btn-primary py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5"

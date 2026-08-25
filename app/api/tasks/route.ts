@@ -24,6 +24,10 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
+    if (!session || !session.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { title, description, category, assignedTo, assignedBy, projectId, priority, status, deadline } = await req.json();
 
     if (!title || !title.trim()) {
