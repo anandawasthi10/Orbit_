@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import {
   collection,
@@ -85,6 +85,14 @@ export default function DailyUpdatesPage() {
     setTimeout(() => setToastMsg(null), 3500);
   };
 
+  // Helper to filter out any fake sample legacy records
+  const sanitizeUpdates = (items: any[]): IUpdate[] => {
+    return (items || []).filter((item) => {
+      const id = String(item._id || item.id || '');
+      return !id.startsWith('update-sample-');
+    });
+  };
+
   // Real-time Firestore sync with robust client-side ordering
   useEffect(() => {
     setLoading(true);
@@ -100,6 +108,11 @@ export default function DailyUpdatesPage() {
             const list: IUpdate[] = [];
             snapshot.forEach((docSnap) => {
               const data = docSnap.data();
+              const docId = docSnap.id;
+
+              // Exclude any legacy sample seed IDs
+              if (docId.startsWith('update-sample-')) return;
+
               let createdIso = new Date().toISOString();
               if (data.createdAt?.toDate) {
                 createdIso = data.createdAt.toDate().toISOString();
@@ -110,8 +123,8 @@ export default function DailyUpdatesPage() {
               }
 
               list.push({
-                _id: docSnap.id,
-                id: docSnap.id,
+                _id: docId,
+                id: docId,
                 message: data.message,
                 type: data.type || 'general',
                 author: data.author || {
@@ -135,7 +148,7 @@ export default function DailyUpdatesPage() {
               .then((res) => res.json())
               .then((data) => {
                 if (Array.isArray(data)) {
-                  setUpdates(data);
+                  setUpdates(sanitizeUpdates(data));
                 }
               })
               .catch(console.warn)
@@ -146,7 +159,7 @@ export default function DailyUpdatesPage() {
           console.warn('Firestore updates onSnapshot warning, falling back to API:', fsErr);
           fetch('/api/updates')
             .then((res) => res.json())
-            .then((data) => setUpdates(Array.isArray(data) ? data : []))
+            .then((data) => setUpdates(sanitizeUpdates(Array.isArray(data) ? data : [])))
             .catch((e) => setError(e.message))
             .finally(() => setLoading(false));
         }
@@ -155,7 +168,7 @@ export default function DailyUpdatesPage() {
       console.warn('Firestore subscription failed, using API:', err);
       fetch('/api/updates')
         .then((res) => res.json())
-        .then((data) => setUpdates(Array.isArray(data) ? data : []))
+        .then((data) => setUpdates(sanitizeUpdates(Array.isArray(data) ? data : [])))
         .catch((e) => setError(e.message))
         .finally(() => setLoading(false));
     }
@@ -165,97 +178,91 @@ export default function DailyUpdatesPage() {
     };
   }, []);
 
+  // Instant Optimistic Submit (0ms Response Time)
   const handleSubmitUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) return;
 
-    setSubmitting(true);
     const trimmedMessage = message.trim();
     const updateType = type;
+    const nowIso = new Date().toISOString();
+    const tempId = `temp-${Date.now()}`;
 
+    const authorInfo = {
+      _id: user?.id || user?._id || 'anon',
+      id: user?.id || user?._id || 'anon',
+      name: user?.name || 'Teammate',
+      role: user?.role || 'Team Member',
+      avatarUrl: user?.avatarUrl || '',
+      email: user?.email || '',
+    };
+
+    const optimisticEntry: IUpdate = {
+      _id: tempId,
+      id: tempId,
+      message: trimmedMessage,
+      type: updateType as any,
+      author: authorInfo as any,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+
+    // 1. INSTANT UI UPDATE
+    setMessage('');
+    setType('general');
+    setUpdates((prev) => [optimisticEntry, ...prev]);
+    showToast('Daily update posted successfully!');
+
+    // 2. Background Sync (Firestore + API)
     try {
-      const authorInfo = {
-        _id: user?.id || user?._id || 'anon',
-        id: user?.id || user?._id || 'anon',
-        name: user?.name || 'Teammate',
-        role: user?.role || 'Team Member',
-        avatarUrl: user?.avatarUrl || '',
-        email: user?.email || '',
-      };
+      // Post to Firestore
+      addDoc(collection(db, 'updates'), {
+        message: trimmedMessage,
+        type: updateType,
+        author: authorInfo,
+        authorId: authorInfo.id,
+        authorName: authorInfo.name,
+        authorRole: authorInfo.role,
+        authorAvatar: authorInfo.avatarUrl,
+        isoCreatedAt: nowIso,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }).catch((fsErr) => console.warn('Firestore async addDoc notice:', fsErr));
 
-      const nowIso = new Date().toISOString();
-
-      // 1. Post to Firestore for real-time live sync across all tabs & users
-      try {
-        await addDoc(collection(db, 'updates'), {
-          message: trimmedMessage,
-          type: updateType,
-          author: authorInfo,
-          authorId: authorInfo.id,
-          authorName: authorInfo.name,
-          authorRole: authorInfo.role,
-          authorAvatar: authorInfo.avatarUrl,
-          isoCreatedAt: nowIso,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-      } catch (fsErr) {
-        console.warn('Firestore addDoc update notice:', fsErr);
-      }
-
-      // 2. Sync with Backend API
-      const res = await fetch('/api/updates', {
+      // Post to API
+      fetch('/api/updates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: trimmedMessage, type: updateType }),
-      });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || 'Failed to post update to server');
-      }
-
-      const newEntry = await res.json();
-      setUpdates((prev) => {
-        const exists = prev.some((u) => String(u._id || u.id) === String(newEntry._id || newEntry.id));
-        return exists ? prev : [newEntry, ...prev];
-      });
-
-      setMessage('');
-      setType('general');
-      showToast('Daily update posted successfully!');
+      }).catch((apiErr) => console.warn('API async post notice:', apiErr));
     } catch (err: any) {
-      showToast(err.message, 'error');
-    } finally {
-      setSubmitting(false);
+      console.error('Submit error:', err);
     }
   };
 
+  // Instant Optimistic Delete
   const handleDeleteUpdate = async () => {
     if (!updateToDelete) return;
     const id = updateToDelete._id || updateToDelete.id;
     if (!id) return;
 
-    setDeletingId(String(id));
+    const targetId = String(id);
+    setUpdateToDelete(null);
+
+    // 1. INSTANT OPTIMISTIC REMOVAL
+    setUpdates((prev) => prev.filter((u) => String(u._id || u.id) !== targetId));
+    showToast('Update removed.');
+
+    // 2. Background Deletion
     try {
-      // 1. Delete from Firestore if exists
-      try {
-        await deleteDoc(doc(db, 'updates', String(id)));
-      } catch (fsErr) {
-        console.warn('Firestore deleteDoc notice:', fsErr);
-      }
-
-      // 2. Delete from API
-      const res = await fetch(`/api/updates/${id}`, { method: 'DELETE' });
-      const data = await res.json().catch(() => ({}));
-
-      setUpdates((prev) => prev.filter((u) => String(u._id || u.id) !== String(id)));
-      showToast('Update deleted successfully.');
-      setUpdateToDelete(null);
+      deleteDoc(doc(db, 'updates', targetId)).catch((fsErr) =>
+        console.warn('Firestore async delete notice:', fsErr)
+      );
+      fetch(`/api/updates/${targetId}`, { method: 'DELETE' }).catch((apiErr) =>
+        console.warn('API async delete notice:', apiErr)
+      );
     } catch (err: any) {
-      showToast(err.message, 'error');
-    } finally {
-      setDeletingId(null);
+      console.error('Delete error:', err);
     }
   };
 
