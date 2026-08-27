@@ -50,12 +50,17 @@ service cloud.firestore {
     }
 
     // 2. Notifications Collection
-    // - Members can only create notification docs of type 'task_submitted'.
-    // - Admins can read, update (mark as read), and delete notifications.
+    // - Members can create a notification doc ONLY if:
+    //   request.resource.data.memberId == request.auth.uid AND
+    //   request.resource.data.type == "task_submitted" AND
+    //   request.resource.data.read == false
+    // - Members CANNOT update or delete any notification, or set read: true.
+    // - Admins can read all notifications, update read status, and delete.
     match /notifications/{notificationId} {
       allow create: if isAuthenticated() &&
         request.resource.data.type == 'task_submitted' &&
-        (request.resource.data.memberId == request.auth.uid || request.resource.data.memberId != null);
+        request.resource.data.memberId == request.auth.uid &&
+        request.resource.data.read == false;
       allow read, update, delete: if isAdmin();
     }
 

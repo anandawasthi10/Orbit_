@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   collection,
   query,
@@ -52,6 +53,8 @@ export function formatRelativeTime(dateInput: any): string {
 }
 
 export function useNotifications(isAdmin: boolean = true) {
+  const queryClient = useQueryClient();
+
   const [notifications, setNotifications] = useState<INotification[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
@@ -69,11 +72,12 @@ export function useNotifications(isAdmin: boolean = true) {
         }));
         setNotifications(apiList);
         setUnreadCount(data.unreadCount || apiList.filter((n: any) => !n.read).length);
+        queryClient.setQueryData(['notifications'], apiList);
       }
     } catch (err) {
       console.warn('API fallback notifications fetch error:', err);
     }
-  }, []);
+  }, [queryClient]);
 
   useEffect(() => {
     if (!isAdmin) {
@@ -115,6 +119,7 @@ export function useNotifications(isAdmin: boolean = true) {
 
             setNotifications(list);
             setUnreadCount(list.filter((n) => !n.read && !n.isRead).length);
+            queryClient.setQueryData(['notifications'], list);
             setLoading(false);
           } else {
             // If empty in firestore, fetch from API fallback as well
@@ -136,20 +141,22 @@ export function useNotifications(isAdmin: boolean = true) {
         unsubscribeFirestore();
       }
     };
-  }, [isAdmin, fetchApiFallback]);
+  }, [isAdmin, fetchApiFallback, queryClient]);
 
   // Mark single notification as read
   const markAsRead = useCallback(async (notificationId: string) => {
     if (!notificationId) return;
 
-    // Optimistic UI update
-    setNotifications((prev) =>
+    // Optimistic UI & Query Cache update
+    const updater = (prev: INotification[]) =>
       prev.map((n) =>
         (n.id === notificationId || n._id === notificationId)
           ? { ...n, read: true, isRead: true }
           : n
-      )
-    );
+      );
+
+    setNotifications(updater);
+    queryClient.setQueryData<INotification[]>(['notifications'], (old) => (old ? updater(old) : []));
     setUnreadCount((prev) => Math.max(0, prev - 1));
 
     // Update in Firestore
@@ -170,14 +177,16 @@ export function useNotifications(isAdmin: boolean = true) {
     } catch (err) {
       console.warn('API PATCH notification error:', err);
     }
-  }, []);
+  }, [queryClient]);
 
   // Mark all notifications as read
   const markAllAsRead = useCallback(async () => {
-    // Optimistic UI update
-    setNotifications((prev) =>
-      prev.map((n) => ({ ...n, read: true, isRead: true }))
-    );
+    // Optimistic UI & Query Cache update
+    const updater = (prev: INotification[]) =>
+      prev.map((n) => ({ ...n, read: true, isRead: true }));
+
+    setNotifications(updater);
+    queryClient.setQueryData<INotification[]>(['notifications'], (old) => (old ? updater(old) : []));
     setUnreadCount(0);
 
     // Update in Firestore
@@ -203,7 +212,7 @@ export function useNotifications(isAdmin: boolean = true) {
     } catch (err) {
       console.warn('API PATCH mark all read error:', err);
     }
-  }, []);
+  }, [queryClient]);
 
   return {
     notifications,

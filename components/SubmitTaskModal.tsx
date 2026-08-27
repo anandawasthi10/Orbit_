@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Send,
   X,
@@ -13,10 +15,11 @@ import {
   Link2,
 } from 'lucide-react';
 import { gsap } from 'gsap';
-import { doc, setDoc, updateDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '@/lib/firebase';
+import { storage } from '@/lib/firebase';
 import { ITask } from '@/types';
+import { taskSubmissionSchema, TaskSubmissionFormValues } from '@/lib/schemas';
+import { useSubmitTask } from '@/hooks/useSubmitTask';
 
 interface SubmitTaskModalProps {
   isOpen: boolean;
@@ -38,25 +41,46 @@ export default function SubmitTaskModal({
   const overlayRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
-  const [link, setLink] = useState('');
-  const [note, setNote] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string>('');
   const [fileName, setFileName] = useState<string>('');
-  const [error, setError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fileError, setFileError] = useState<string>('');
+
+  const submitTaskMutation = useSubmitTask();
+
+  // React Hook Form + Zod Resolver
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<TaskSubmissionFormValues>({
+    resolver: zodResolver(taskSubmissionSchema) as any,
+    defaultValues: {
+      link: '',
+      note: '',
+      attachmentUrl: '',
+    },
+  });
 
   // Initialize or reset form when task opens
   useEffect(() => {
     if (task) {
-      setLink(task.submissionLink || task.submission?.link || '');
-      setNote(task.submissionNote || task.submission?.note || '');
-      setFilePreview(task.submissionFile || task.submission?.screenshotUrl || '');
-      setFileName(task.submissionFile ? 'Attached File' : '');
+      const initialLink = task.submissionLink || task.submission?.link || '';
+      const initialNote = task.submissionNote || task.submission?.note || '';
+      const initialFile = task.submissionFile || task.submission?.screenshotUrl || '';
+
+      setValue('link', initialLink);
+      setValue('note', initialNote);
+      setValue('attachmentUrl', initialFile);
+
+      setFilePreview(initialFile);
+      setFileName(initialFile ? 'Attached File' : '');
       setSelectedFile(null);
-      setError('');
+      setFileError('');
     }
-  }, [task]);
+  }, [task, setValue]);
 
   // GSAP animation for modal entrance
   useEffect(() => {
@@ -87,9 +111,13 @@ export default function SubmitTaskModal({
         opacity: 0,
         duration: 0.15,
         ease: 'power2.in',
-        onComplete: onClose,
+        onComplete: () => {
+          reset();
+          onClose();
+        },
       });
     } else {
+      reset();
       onClose();
     }
   };
@@ -100,19 +128,20 @@ export default function SubmitTaskModal({
 
     // Check size limit (10MB)
     if (file.size > 10 * 1024 * 1024) {
-      setError('File size must be under 10MB');
+      setFileError('File size must be under 10MB');
       return;
     }
 
-    setError('');
+    setFileError('');
     setSelectedFile(file);
     setFileName(file.name);
 
-    // If image, create base64 preview
     if (file.type.startsWith('image/')) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setFilePreview(reader.result as string);
+        const preview = reader.result as string;
+        setFilePreview(preview);
+        setValue('attachmentUrl', preview);
       };
       reader.readAsDataURL(file);
     } else {
@@ -124,32 +153,17 @@ export default function SubmitTaskModal({
     setSelectedFile(null);
     setFilePreview('');
     setFileName('');
+    setValue('attachmentUrl', '');
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (values: TaskSubmissionFormValues) => {
     if (!task) return;
-
-    if (!link.trim()) {
-      setError('Please provide a submission link (GitHub, live demo, or doc URL)');
-      return;
-    }
-
-    const urlPattern = /^(https?:\/\/)?([\w.-]+)+(:\d+)?(\/.*)?$/i;
-    if (!urlPattern.test(link.trim())) {
-      setError('Please enter a valid URL (e.g. https://github.com/... or https://mydemo.vercel.app)');
-      return;
-    }
-
-    setIsSubmitting(true);
-    setError('');
 
     const taskId = task._id || task.id || '';
     const memberId = sessionUser?.id || sessionUser?._id || 'anonymous';
     const memberName = sessionUser?.name || 'Team Member';
-    const taskTitle = task.title || 'Assigned Task';
 
-    let fileUrl = filePreview;
+    let fileUrl = values.attachmentUrl || filePreview;
 
     try {
       // 1. Upload to Firebase Storage if a new file was chosen
@@ -163,98 +177,41 @@ export default function SubmitTaskModal({
         }
       }
 
-      const submissionPayload = {
+      // 2. Submit task via TanStack Query mutation
+      await submitTaskMutation.mutateAsync({
         taskId,
-        link: link.trim(),
-        screenshotUrl: fileUrl,
-        submissionFile: fileUrl,
-        submissionFiles: fileUrl ? [fileUrl] : [],
-        submissionNote: note.trim(),
-        note: note.trim(),
-        status: 'submitted',
-        submittedAt: new Date().toISOString(),
-        submittedBy: memberId,
-        submittedByName: memberName,
-      };
+        taskTitle: task.title || 'Assigned Task',
+        link: values.link.trim(),
+        note: values.note ? values.note.trim() : '',
+        fileUrl,
+        memberId,
+        memberName,
+      });
 
-      // 2. Write/Update in Firestore (Tasks collection)
-      try {
-        const taskDocRef = doc(db, 'tasks', taskId);
-        await setDoc(
-          taskDocRef,
-          {
-            status: 'submitted',
-            submittedAt: serverTimestamp(),
-            submittedBy: memberId,
-            submittedByName: memberName,
-            submissionNote: note.trim(),
-            submissionFile: fileUrl,
-            submissionFiles: fileUrl ? [fileUrl] : [],
-            submissionLink: link.trim(),
-            updatedAt: serverTimestamp(),
-          },
-          { merge: true }
-        );
-      } catch (fsErr: any) {
-        console.warn('Firestore task write warning:', fsErr.message);
-      }
-
-      // 3. Create Notification in Firestore (Notifications collection)
-      try {
-        const notifRef = collection(db, 'notifications');
-        await addDoc(notifRef, {
-          type: 'task_submitted',
-          taskId,
-          taskTitle,
-          memberName,
-          memberId,
-          createdAt: serverTimestamp(),
-          read: false,
-          isRead: false,
-          message: `${memberName} submitted '${taskTitle}' task`,
-        });
-      } catch (notifErr: any) {
-        console.warn('Firestore notification write warning:', notifErr.message);
-      }
-
-      // 4. Sync with Backend API (/api/submissions)
-      try {
-        await fetch('/api/submissions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            taskId,
-            link: link.trim(),
-            screenshotUrl: fileUrl,
-            note: note.trim(),
-          }),
-        });
-      } catch (apiErr: any) {
-        console.warn('API sync warning:', apiErr.message);
-      }
-
-      // 5. Optimistic Toast & Callback
+      // 3. Optimistic Toast & Callbacks
       if (showToast) {
-        showToast('Task submitted successfully! Real-time alert sent to admins.');
+        showToast('Task submitted successfully! Real-time notification dispatched to admins.');
       }
 
       if (onSubmitSuccess) {
         onSubmitSuccess({
           ...task,
-          ...submissionPayload,
+          status: 'submitted',
+          submissionLink: values.link.trim(),
+          submissionNote: values.note,
+          submissionFile: fileUrl,
         });
       }
 
       handleClose();
     } catch (err: any) {
       console.error('Task submission error:', err);
-      setError(err.message || 'Failed to submit task. Please try again.');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
   if (!isOpen || !task) return null;
+
+  const isPending = isSubmitting || submitTaskMutation.isPending;
 
   return (
     <div
@@ -286,16 +243,23 @@ export default function SubmitTaskModal({
           </button>
         </div>
 
-        {/* Error Banner */}
-        {error && (
+        {/* Global Mutation Error Banner */}
+        {submitTaskMutation.isError && (
           <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{error}</span>
+            <span>{(submitTaskMutation.error as any)?.message || 'Failed to submit task. Please try again.'}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Submission URL Field (Required) */}
+        {fileError && (
+          <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{fileError}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {/* Submission URL Field (Required + Zod Validated) */}
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
               <span>Submission Link *</span>
@@ -305,16 +269,23 @@ export default function SubmitTaskModal({
               <Link2 className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="url"
-                required
-                value={link}
-                onChange={(e) => setLink(e.target.value)}
+                {...register('link')}
                 placeholder="https://github.com/myrepo or https://mydemo.vercel.app"
-                className="w-full pl-9 pr-3.5 py-2 rounded-xl saas-input text-xs text-slate-900 font-semibold placeholder:text-slate-400"
+                className={`w-full pl-9 pr-3.5 py-2 rounded-xl saas-input text-xs text-slate-900 font-semibold placeholder:text-slate-400 ${
+                  errors.link ? 'border-rose-400 ring-rose-200 bg-rose-50/20' : ''
+                }`}
               />
             </div>
-            <p className="text-[11px] text-slate-400 mt-1">
-              Provide live preview URL, pull request, Figma link, or repository.
-            </p>
+            {errors.link ? (
+              <p className="text-[11px] text-rose-600 font-medium mt-1 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3 shrink-0" />
+                <span>{errors.link.message}</span>
+              </p>
+            ) : (
+              <p className="text-[11px] text-slate-400 mt-1">
+                Provide live preview URL, pull request, Figma link, or repository.
+              </p>
+            )}
           </div>
 
           {/* Optional File Attachment (Firebase Storage / Preview) */}
@@ -377,8 +348,7 @@ export default function SubmitTaskModal({
             </label>
             <textarea
               rows={3}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
+              {...register('note')}
               placeholder="Summary of completed deliverables, test instructions, or notes for the lead reviewer..."
               className="w-full px-3.5 py-2 rounded-xl saas-input text-xs text-slate-900 placeholder:text-slate-400"
             />
@@ -395,10 +365,10 @@ export default function SubmitTaskModal({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || !link.trim()}
+              disabled={isPending}
               className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg transition-all disabled:opacity-50 flex items-center gap-2"
             >
-              {isSubmitting ? (
+              {isPending ? (
                 <>
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   <span>Submitting Task...</span>
