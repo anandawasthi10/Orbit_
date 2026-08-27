@@ -93,84 +93,86 @@ export default function DailyUpdatesPage() {
     });
   };
 
-  // Real-time Firestore sync with robust client-side ordering
+  const mergeUpdates = (fsItems: IUpdate[], apiItems: IUpdate[]): IUpdate[] => {
+    const map = new Map<string, IUpdate>();
+    [...apiItems, ...fsItems].forEach((u) => {
+      const id = String(u._id || u.id || '');
+      if (id) map.set(id, u);
+    });
+    return Array.from(map.values())
+      .filter((u) => !String(u._id || u.id || '').startsWith('update-sample-'))
+      .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
+  };
+
+  // Real-time dual-source sync: API load on mount + Firestore live stream
   useEffect(() => {
     setLoading(true);
     let unsubscribeFirestore: (() => void) | null = null;
+    let apiItems: IUpdate[] = [];
 
+    // Load persistent data from API first
+    fetch('/api/updates')
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: any[]) => {
+        if (Array.isArray(data)) {
+          apiItems = sanitizeUpdates(data);
+          setUpdates((prev) => mergeUpdates(prev, apiItems));
+          setLoading(false);
+        }
+      })
+      .catch(console.warn);
+
+    // Subscribe to Firestore for live updates and merge with API data
     try {
       const updatesRef = collection(db, 'updates');
-
       unsubscribeFirestore = onSnapshot(
         updatesRef,
         (snapshot) => {
-          if (!snapshot.empty) {
-            const list: IUpdate[] = [];
-            snapshot.forEach((docSnap) => {
-              const data = docSnap.data();
-              const docId = docSnap.id;
+          const list: IUpdate[] = [];
+          snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            const docId = docSnap.id;
+            if (docId.startsWith('update-sample-')) return;
 
-              // Exclude any legacy sample seed IDs
-              if (docId.startsWith('update-sample-')) return;
+            let createdIso = new Date().toISOString();
+            if (data.createdAt?.toDate) {
+              createdIso = data.createdAt.toDate().toISOString();
+            } else if (data.isoCreatedAt) {
+              createdIso = data.isoCreatedAt;
+            } else if (data.createdAt) {
+              createdIso = String(data.createdAt);
+            }
 
-              let createdIso = new Date().toISOString();
-              if (data.createdAt?.toDate) {
-                createdIso = data.createdAt.toDate().toISOString();
-              } else if (data.isoCreatedAt) {
-                createdIso = data.isoCreatedAt;
-              } else if (data.createdAt) {
-                createdIso = String(data.createdAt);
-              }
+            list.push({
+              _id: docId,
+              id: docId,
+              message: data.message,
+              type: data.type || 'general',
+              author: data.author || {
+                _id: data.authorId || '',
+                name: data.authorName || 'Teammate',
+                role: data.authorRole || 'Member',
+                avatarUrl: data.authorAvatar || '',
+              },
+              createdAt: createdIso,
+              updatedAt: createdIso,
+            } as any);
+          });
 
-              list.push({
-                _id: docId,
-                id: docId,
-                message: data.message,
-                type: data.type || 'general',
-                author: data.author || {
-                  _id: data.authorId || '',
-                  name: data.authorName || 'Teammate',
-                  role: data.authorRole || 'Member',
-                  avatarUrl: data.authorAvatar || '',
-                },
-                createdAt: createdIso,
-                updatedAt: createdIso,
-              } as any);
-            });
-
-            // Sort newest first in memory
-            list.sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
-            setUpdates(list);
-            setLoading(false);
-          } else {
-            // Fallback to API if Firestore has no docs yet
-            fetch('/api/updates')
-              .then((res) => res.json())
-              .then((data) => {
-                if (Array.isArray(data)) {
-                  setUpdates(sanitizeUpdates(data));
-                }
-              })
-              .catch(console.warn)
-              .finally(() => setLoading(false));
-          }
+          // Merge Firestore items with previously fetched API items
+          setUpdates(mergeUpdates(list, apiItems));
+          setLoading(false);
         },
         (fsErr) => {
           console.warn('Firestore updates onSnapshot warning, falling back to API:', fsErr);
-          fetch('/api/updates')
-            .then((res) => res.json())
-            .then((data) => setUpdates(sanitizeUpdates(Array.isArray(data) ? data : [])))
-            .catch((e) => setError(e.message))
-            .finally(() => setLoading(false));
+          setUpdates(apiItems.length > 0 ? apiItems : []);
+          setLoading(false);
         }
       );
     } catch (err: any) {
       console.warn('Firestore subscription failed, using API:', err);
-      fetch('/api/updates')
-        .then((res) => res.json())
-        .then((data) => setUpdates(sanitizeUpdates(Array.isArray(data) ? data : [])))
-        .catch((e) => setError(e.message))
-        .finally(() => setLoading(false));
+      setUpdates(apiItems);
+      setLoading(false);
     }
 
     return () => {

@@ -12,6 +12,7 @@ import {
   IProgressSnapshot,
   ISubmission,
   INotification,
+  IAnnouncement,
 } from '@/types';
 
 // Global in-memory cache to guarantee operational persistence even if disk is 100% read-only (EROFS)
@@ -1215,5 +1216,54 @@ export const FileProgressSnapshotStore = {
 
     writeProgressSnapshots(snapshots);
     return { ...snapshotData };
+  },
+};
+
+// ─── Announcements Store ─────────────────────────────────────────────────────
+
+function readAnnouncements(): IAnnouncement[] {
+  return safeReadJSON<IAnnouncement[]>('announcements.json', []);
+}
+
+function writeAnnouncements(items: IAnnouncement[]): void {
+  safeWriteJSON('announcements.json', items);
+}
+
+export const FileAnnouncementStore = {
+  find() {
+    const items = readAnnouncements();
+    const sorted = [...items].sort(
+      (a, b) => new Date(b.isoCreatedAt || 0).getTime() - new Date(a.isoCreatedAt || 0).getTime()
+    );
+    return sorted;
+  },
+
+  async create(data: Partial<IAnnouncement>) {
+    const items = readAnnouncements();
+    const now = new Date().toISOString();
+    const newDoc: IAnnouncement = {
+      _id: crypto.randomUUID(),
+      id: undefined as any,
+      authorId: data.authorId || 'anon',
+      authorName: data.authorName || 'Teammate',
+      authorAvatar: data.authorAvatar || '',
+      authorRole: data.authorRole || 'member',
+      message: data.message || '',
+      isoCreatedAt: now,
+      createdAt: now,
+    };
+    newDoc.id = newDoc._id;
+    items.push(newDoc);
+    writeAnnouncements(items);
+    return newDoc;
+  },
+
+  async findByIdAndDelete(id: string) {
+    if (!id) return false;
+    const items = readAnnouncements();
+    const targetId = String(id);
+    const filtered = items.filter((a) => String(a._id || a.id) !== targetId);
+    writeAnnouncements(filtered);
+    return true;
   },
 };
