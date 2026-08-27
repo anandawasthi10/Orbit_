@@ -98,15 +98,39 @@ export default function DailyUpdatesPage() {
   const firestoreItemsRef = useRef<IUpdate[]>([]);
 
   function mergeAll(): IUpdate[] {
-    const map = new Map<string, IUpdate>();
-    [...apiItemsRef.current, ...firestoreItemsRef.current].forEach((u) => {
+    const list = [...apiItemsRef.current, ...firestoreItemsRef.current];
+    const uniqueList: IUpdate[] = [];
+
+    for (const u of list) {
       const id = String(u._id || u.id || '');
-      if (id && !id.startsWith('update-sample-') && !id.startsWith('temp-')) {
-        map.set(id, u);
+      if (!id || id.startsWith('temp-') || id.startsWith('update-sample-')) continue;
+
+      const isDuplicate = uniqueList.some((existing) => {
+        if (String(existing._id || existing.id) === id) return true;
+        const authorObj1 = typeof existing.author === 'object' ? existing.author : null;
+        const authorObj2 = typeof u.author === 'object' ? u.author : null;
+        const authorIdExisting = authorObj1?._id || authorObj1?.id || (existing as any).authorId || (typeof existing.author === 'string' ? existing.author : '');
+        const authorIdNew = authorObj2?._id || authorObj2?.id || (u as any).authorId || (typeof u.author === 'string' ? u.author : '');
+        if (
+          authorIdExisting &&
+          authorIdExisting === authorIdNew &&
+          existing.message?.trim() === u.message?.trim() &&
+          Math.abs(
+            new Date(existing.createdAt || 0).getTime() -
+            new Date(u.createdAt || 0).getTime()
+          ) < 60000
+        ) {
+          return true;
+        }
+        return false;
+      });
+
+      if (!isDuplicate) {
+        uniqueList.push(u);
       }
-    });
-    const result = Array.from(map.values())
-      .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
+    }
+
+    const result = uniqueList.sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
 
     // Save to local cache for 0ms instant display on next reload
     if (typeof window !== 'undefined' && result.length > 0) {

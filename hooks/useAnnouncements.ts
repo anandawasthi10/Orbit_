@@ -36,14 +36,37 @@ function playNotificationChime() {
   } catch (_) {}
 }
 
-/** Merge two lists by id, keeping latest 200, sorted newest-first. */
+/** Merge two lists by id and content, keeping latest 200, sorted newest-first. */
 function mergeAndSort(a: IAnnouncement[], b: IAnnouncement[]): IAnnouncement[] {
-  const map = new Map<string, IAnnouncement>();
-  [...a, ...b].forEach((item) => {
+  const list = [...a, ...b];
+  const uniqueList: IAnnouncement[] = [];
+
+  for (const item of list) {
     const id = String(item._id || item.id || '');
-    if (id) map.set(id, item);
-  });
-  return Array.from(map.values())
+    if (!id || id.startsWith('temp-')) continue;
+
+    // Check if duplicate by ID or same author + message + close timestamp
+    const isDuplicate = uniqueList.some((existing) => {
+      if (String(existing._id || existing.id) === id) return true;
+      if (
+        existing.authorId === item.authorId &&
+        existing.message?.trim() === item.message?.trim() &&
+        Math.abs(
+          new Date(existing.isoCreatedAt || existing.createdAt || 0).getTime() -
+          new Date(item.isoCreatedAt || item.createdAt || 0).getTime()
+        ) < 60000 // within 60 seconds
+      ) {
+        return true;
+      }
+      return false;
+    });
+
+    if (!isDuplicate) {
+      uniqueList.push(item);
+    }
+  }
+
+  return uniqueList
     .sort(
       (x, y) =>
         new Date(y.isoCreatedAt || y.createdAt || 0).getTime() -
