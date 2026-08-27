@@ -93,36 +93,65 @@ export default function DailyUpdatesPage() {
     });
   };
 
-  const mergeUpdates = (fsItems: IUpdate[], apiItems: IUpdate[]): IUpdate[] => {
+  // Stable ref so Firestore closure always has latest API data
+  const apiItemsRef = useRef<IUpdate[]>([]);
+  const firestoreItemsRef = useRef<IUpdate[]>([]);
+
+  function mergeAll(): IUpdate[] {
     const map = new Map<string, IUpdate>();
-    [...apiItems, ...fsItems].forEach((u) => {
+    [...apiItemsRef.current, ...firestoreItemsRef.current].forEach((u) => {
       const id = String(u._id || u.id || '');
-      if (id) map.set(id, u);
+      if (id && !id.startsWith('update-sample-') && !id.startsWith('temp-')) {
+        map.set(id, u);
+      }
     });
     return Array.from(map.values())
-      .filter((u) => !String(u._id || u.id || '').startsWith('update-sample-'))
       .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
-  };
+  }
 
-  // Real-time dual-source sync: API load on mount + Firestore live stream
+  // Fetch from persistent API (MongoDB / fileDb)
   useEffect(() => {
     setLoading(true);
-    let unsubscribeFirestore: (() => void) | null = null;
-    let apiItems: IUpdate[] = [];
-
-    // Load persistent data from API first
-    fetch('/api/updates')
-      .then((r) => (r.ok ? r.json() : []))
+    fetch('/api/updates', { credentials: 'include' })
+      .then(async (r) => {
+        const contentType = r.headers.get('content-type') || '';
+        if (!r.ok || !contentType.includes('application/json')) {
+          console.warn('Updates API returned non-JSON (possibly redirected to login)');
+          return [];
+        }
+        return r.json();
+      })
       .then((data: any[]) => {
-        if (Array.isArray(data)) {
-          apiItems = sanitizeUpdates(data);
-          setUpdates((prev) => mergeUpdates(prev, apiItems));
+        if (Array.isArray(data) && data.length > 0) {
+          const normalized = sanitizeUpdates(data).map((u: any) => ({
+            _id: String(u._id || u.id || ''),
+            id: String(u._id || u.id || ''),
+            message: u.message,
+            type: u.type || 'general',
+            author: u.author || {
+              _id: u.authorId || '',
+              name: u.authorName || 'Teammate',
+              role: u.authorRole || 'Team Member',
+              avatarUrl: u.authorAvatar || '',
+            },
+            createdAt: u.isoCreatedAt || u.createdAt || new Date().toISOString(),
+            updatedAt: u.isoCreatedAt || u.updatedAt || new Date().toISOString(),
+          }));
+          apiItemsRef.current = normalized;
+          setUpdates(mergeAll());
           setLoading(false);
         }
       })
-      .catch(console.warn);
+      .catch((e) => {
+        console.warn('Updates API fetch error:', e);
+        setLoading(false);
+      });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Subscribe to Firestore for live updates and merge with API data
+  // Subscribe to Firestore for live real-time updates
+  useEffect(() => {
+    let unsubscribeFirestore: (() => void) | null = null;
+
     try {
       const updatesRef = collection(db, 'updates');
       unsubscribeFirestore = onSnapshot(
@@ -132,7 +161,7 @@ export default function DailyUpdatesPage() {
           snapshot.forEach((docSnap) => {
             const data = docSnap.data();
             const docId = docSnap.id;
-            if (docId.startsWith('update-sample-')) return;
+            if (docId.startsWith('update-sample-') || docId.startsWith('temp-')) return;
 
             let createdIso = new Date().toISOString();
             if (data.createdAt?.toDate) {
@@ -159,31 +188,31 @@ export default function DailyUpdatesPage() {
             } as any);
           });
 
-          // Merge Firestore items with previously fetched API items
-          setUpdates(mergeUpdates(list, apiItems));
+          firestoreItemsRef.current = list;
+          setUpdates(mergeAll());
           setLoading(false);
         },
         (fsErr) => {
-          console.warn('Firestore updates onSnapshot warning, falling back to API:', fsErr);
-          setUpdates(apiItems.length > 0 ? apiItems : []);
+          console.warn('Firestore updates error, using API data only:', fsErr);
+          setUpdates(apiItemsRef.current.length > 0 ? apiItemsRef.current : []);
           setLoading(false);
         }
       );
     } catch (err: any) {
       console.warn('Firestore subscription failed, using API:', err);
-      setUpdates(apiItems);
+      setUpdates(apiItemsRef.current);
       setLoading(false);
     }
 
     return () => {
       if (unsubscribeFirestore) unsubscribeFirestore();
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Instant Optimistic Submit (0ms Response Time)
   const handleSubmitUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim()) return;
+    if (!message.trim() || submitting) return;
 
     const trimmedMessage = message.trim();
     const updateType = type;
@@ -209,15 +238,15 @@ export default function DailyUpdatesPage() {
       updatedAt: nowIso,
     };
 
-    // 1. INSTANT UI UPDATE
+    // 1. INSTANT UI UPDATE — show it right away
     setMessage('');
     setType('general');
+    setSubmitting(true);
     setUpdates((prev) => [optimisticEntry, ...prev]);
-    showToast('Daily update posted successfully!');
+    showToast('Daily update posted!');
 
-    // 2. Background Sync (Firestore + API)
     try {
-      // Post to Firestore
+      // 2a. Write to Firestore for real-time broadcast to others
       addDoc(collection(db, 'updates'), {
         message: trimmedMessage,
         type: updateType,
@@ -231,14 +260,47 @@ export default function DailyUpdatesPage() {
         updatedAt: serverTimestamp(),
       }).catch((fsErr) => console.warn('Firestore async addDoc notice:', fsErr));
 
-      // Post to API
-      fetch('/api/updates', {
+      // 2b. Write to MongoDB API for permanent storage
+      const apiRes = await fetch('/api/updates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: trimmedMessage, type: updateType }),
-      }).catch((apiErr) => console.warn('API async post notice:', apiErr));
+        credentials: 'include',
+        body: JSON.stringify({
+          message: trimmedMessage,
+          type: updateType,
+          authorId: authorInfo.id,
+          authorName: authorInfo.name,
+          authorRole: authorInfo.role,
+          authorAvatar: authorInfo.avatarUrl,
+        }),
+      });
+
+      if (apiRes.ok) {
+        const savedUpdate = await apiRes.json();
+        if (savedUpdate?._id || savedUpdate?.id) {
+          const realId = String(savedUpdate._id || savedUpdate.id);
+          const persistedEntry: IUpdate = {
+            _id: realId,
+            id: realId,
+            message: trimmedMessage,
+            type: updateType as any,
+            author: authorInfo as any,
+            createdAt: nowIso,
+            updatedAt: nowIso,
+          };
+          // Add real entry to ref and remove temp
+          apiItemsRef.current = [persistedEntry, ...apiItemsRef.current.filter(u => String(u._id || u.id) !== tempId)];
+          // Replace temp entry with real one in UI
+          setUpdates((prev) => {
+            const withoutTemp = prev.filter(u => String(u._id || u.id) !== tempId);
+            return [persistedEntry, ...withoutTemp];
+          });
+        }
+      }
     } catch (err: any) {
       console.error('Submit error:', err);
+    } finally {
+      setSubmitting(false);
     }
   };
 

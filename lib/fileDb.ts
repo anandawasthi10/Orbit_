@@ -381,11 +381,26 @@ function populateUpdateAuthor(update: any): IUpdate {
   const members = readMembers();
 
   let authorObj: any = null;
-  if (update.author) {
-    const authorId = typeof update.author === 'object' ? (update.author._id || update.author.id) : update.author;
+  const authorId = update.authorId || (typeof update.author === 'object' ? (update.author?._id || update.author?.id) : update.author);
+  if (authorId) {
     const foundAuthor = members.find((m) => m._id === authorId || m.id === authorId);
     if (foundAuthor) {
       authorObj = formatMemberDoc(foundAuthor);
+    }
+  }
+
+  if (!authorObj) {
+    if (update.author && typeof update.author === 'object' && update.author.name) {
+      authorObj = update.author;
+    } else {
+      authorObj = {
+        _id: update.authorId || 'anon',
+        id: update.authorId || 'anon',
+        name: update.authorName || 'Teammate',
+        role: update.authorRole || 'Team Member',
+        avatarUrl: update.authorAvatar || '',
+        email: update.authorEmail || '',
+      };
     }
   }
 
@@ -1083,27 +1098,24 @@ export const FileUpdateStore = {
   find(query: any = {}) {
     const updates = readUpdates();
     const populated = updates.map(populateUpdateAuthor);
-    const sorted = populated.sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
-
-    return {
-      sort() {
-        return sorted;
-      },
-      then(resolve: any) {
-        resolve(sorted);
-      },
-    };
+    return populated.sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
   },
 
-  async create(data: Partial<IUpdate>) {
+  async create(data: any) {
     const updates = readUpdates();
     const now = new Date().toISOString();
     const newDoc: any = {
       _id: crypto.randomUUID(),
       id: undefined,
+      authorId: data.authorId || (typeof data.author === 'object' ? (data.author?._id || data.author?.id) : data.author) || '',
+      authorName: data.authorName || (typeof data.author === 'object' ? data.author?.name : '') || 'Teammate',
+      authorRole: data.authorRole || (typeof data.author === 'object' ? data.author?.role : '') || 'Team Member',
+      authorAvatar: data.authorAvatar || (typeof data.author === 'object' ? data.author?.avatarUrl : '') || '',
+      authorEmail: data.authorEmail || (typeof data.author === 'object' ? data.author?.email : '') || '',
       author: data.author || null,
       message: data.message || '',
       type: data.type || 'general',
+      isoCreatedAt: now,
       createdAt: now,
       updatedAt: now,
     };
@@ -1267,3 +1279,5 @@ export const FileAnnouncementStore = {
     return true;
   },
 };
+
+
