@@ -160,7 +160,7 @@ export default function AnnouncementsPage() {
       {/* Top Header Bar */}
       <TopHeader
         title="Workspace Announcements"
-        subtitle="Bidirectional real-time broadcasts for admins and team members."
+        subtitle="Official workspace broadcasts from team leads & admins."
       />
 
       {/* Non-Blocking Browser Notification Permission Prompt */}
@@ -187,8 +187,28 @@ export default function AnnouncementsPage() {
         </div>
       )}
 
-      {/* Announcement Composer */}
-      <AnnouncementComposer onPost={handlePost} isSubmitting={isSubmitting} />
+      {/* Announcement Composer — Admin Only */}
+      {isAdmin ? (
+        <AnnouncementComposer onPost={handlePost} isSubmitting={isSubmitting} />
+      ) : (
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-4.5 flex items-center gap-3.5 shadow-xs">
+          <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center shrink-0">
+            <Megaphone className="w-4.5 h-4.5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h4 className="text-xs font-bold text-slate-900">Official Announcement Channel</h4>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                <ShieldCheck className="w-3 h-3 text-amber-600" />
+                Admin Broadcasts Only
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Only workspace admins and team leads can post announcements here. Live updates stream directly from Firebase.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Real-time Announcements Feed */}
       <div className="space-y-4 pt-2">

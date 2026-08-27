@@ -274,11 +274,19 @@ export function useAnnouncements(onNewAnnouncement?: (a: IAnnouncement) => void)
         ? 'admin'
         : 'member';
 
+    const isAdmin =
+      user?.email === 'anandawasthi610@gmail.com' ||
+      roleTag === 'admin';
+
+    if (!isAdmin) {
+      throw new Error('Only workspace admins can post announcements.');
+    }
+
     const authorPayload = {
       authorId: currentUserId || 'anonymous',
       authorName: currentUserName,
       authorAvatar: currentUserAvatar,
-      authorRole: roleTag,
+      authorRole: 'admin',
       message: trimmed,
       isoCreatedAt: nowIso,
     };

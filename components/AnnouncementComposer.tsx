@@ -41,32 +41,25 @@ export default function AnnouncementComposer({ onPost, isSubmitting = false }: A
       {/* Header with Role Tag */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
             <Megaphone className="w-4 h-4" />
           </div>
           <div>
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              Broadcast Announcement
+              Broadcast Team Announcement
             </h3>
             <p className="text-xs text-slate-500">
-              Share critical updates instantly across both Admin &amp; Member panels
+              Broadcast critical notices, milestone alerts, or guidelines across all workspace members
             </p>
           </div>
         </div>
 
         {/* Poster Role Badge */}
         <div className="flex items-center gap-1.5">
-          {isAdmin ? (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200 shadow-xs">
-              <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
-              Admin Broadcast
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
-              <User className="w-3.5 h-3.5 text-slate-500" />
-              Member Update
-            </span>
-          )}
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200 shadow-xs">
+            <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
+            Admin Broadcast
+          </span>
         </div>
       </div>
 
@@ -76,11 +69,7 @@ export default function AnnouncementComposer({ onPost, isSubmitting = false }: A
           rows={3}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          placeholder={
-            isAdmin
-              ? 'Post an official team-wide announcement, sprint goal, or critical release notice...'
-              : 'Post a project announcement, team shout-out, or milestone update for everyone...'
-          }
+          placeholder="Post an official team-wide announcement, sprint goal, or critical release notice..."
           className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none bg-slate-50/50 focus:bg-white"
         />
 

@@ -43,13 +43,20 @@ export async function POST(req: NextRequest) {
       userRole.includes('ceo') ||
       userRole.includes('founder');
 
+    if (!isAdmin) {
+      return NextResponse.json(
+        { error: 'Forbidden: Only workspace admins and team leads can post announcements' },
+        { status: 403 }
+      );
+    }
+
     await connectDB();
     const now = new Date().toISOString();
     const newAnnouncement = await Announcement.create({
       authorId: user.id || '',
       authorName: user.name || 'Team Member',
       authorAvatar: user.avatarUrl || '',
-      authorRole: authorRole || (isAdmin ? 'admin' : 'member'),
+      authorRole: 'admin',
       message: message.trim(),
       isoCreatedAt: now,
     });
