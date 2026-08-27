@@ -50,15 +50,6 @@ export default function AppShell({ children }: AppShellProps) {
     return <>{children}</>;
   }
 
-  // If unverified and trying to view a protected page, block rendering while redirecting
-  if (hasAccess === false && !isLandingPage) {
-    return (
-      <div className="min-h-screen w-full flex items-center justify-center bg-[#f8f8ff]">
-        <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
   // 1. Auth pages (/login, /signup) -> full-screen clean white/black professional theme
   if (isAuthPage) {
     return (
@@ -81,6 +72,16 @@ export default function AppShell({ children }: AppShellProps) {
       </div>
     );
   }
+
+  // If unverified and trying to view a protected workspace page, redirect to /enter-code
+  if (hasAccess === false && !isLandingPage && !isAuthPage && !isEnterCodePage) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-[#f8f8ff]">
+        <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
 
   // 2. Landing page (/) — no AppShell chrome, page renders its own navbar + hero
   if (isLandingPage && !session?.user) {
