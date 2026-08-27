@@ -37,9 +37,7 @@ export default function SignupPage() {
         redirect: false,
       });
       if (signInResult?.error) throw new Error(signInResult.error || 'Auto sign-in failed');
-
-      router.push('/dashboard');
-      router.refresh();
+      window.location.href = '/dashboard';
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -69,8 +67,7 @@ export default function SignupPage() {
         throw new Error(authRes.error || 'Failed to sign up with Google');
       }
 
-      router.push('/dashboard');
-      router.refresh();
+      window.location.href = '/dashboard';
     } catch (err: any) {
       console.error('Google Sign-Up error:', err);
       if (err.code === 'auth/unauthorized-domain' || err.message?.includes('unauthorized-domain')) {

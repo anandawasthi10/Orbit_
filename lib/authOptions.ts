@@ -101,17 +101,6 @@ export const authOptions: AuthOptions = {
   session: {
     strategy: 'jwt',
   },
-  cookies: {
-    sessionToken: {
-      name: 'orbit.session-token',
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: process.env.NODE_ENV === 'production',
-      },
-    },
-  },
   callbacks: {
     async jwt({ token, user, trigger, session }) {
       if (user) {

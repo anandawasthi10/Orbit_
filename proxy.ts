@@ -3,34 +3,33 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export async function proxy(req: NextRequest) {
-  const token = await getToken({
-    req,
-    secret: process.env.NEXTAUTH_SECRET || 'orbit-super-secret-key-1234567890-v2',
-    cookieName: 'orbit.session-token',
-  });
+  const secret = process.env.NEXTAUTH_SECRET || 'orbit-super-secret-key-1234567890-v2';
+
+  // Resolve session token across all standard & secure cookie variants (Localhost & Vercel HTTPS)
+  let token = await getToken({ req, secret });
+
+  if (!token) {
+    token = await getToken({ req, secret, cookieName: 'orbit.session-token' });
+  }
+  if (!token) {
+    token = await getToken({ req, secret, cookieName: '__Secure-orbit.session-token' });
+  }
+  if (!token) {
+    token = await getToken({ req, secret, cookieName: 'next-auth.session-token' });
+  }
+  if (!token) {
+    token = await getToken({ req, secret, cookieName: '__Secure-next-auth.session-token' });
+  }
 
   const { pathname } = req.nextUrl;
 
-  // Create response object
-  const res = NextResponse.next();
-
-  // Clear old next-auth cookies if present
-  if (req.cookies.has('next-auth.session-token')) {
-    res.cookies.set('next-auth.session-token', '', { maxAge: 0, path: '/' });
-  }
-  if (req.cookies.has('__Secure-next-auth.session-token')) {
-    res.cookies.set('__Secure-next-auth.session-token', '', { maxAge: 0, path: '/' });
-  }
-
-  // If user is logged in and visits root landing page (/), redirect to /dashboard
-  if (token && pathname === '/') {
+  // If user is already authenticated and visits /, /login, or /signup, redirect straight to /dashboard
+  if (token && (pathname === '/' || pathname === '/login' || pathname === '/signup')) {
     const targetUrl = new URL('/dashboard', req.url);
-    const redirectRes = NextResponse.redirect(targetUrl);
-    redirectRes.cookies.set('next-auth.session-token', '', { maxAge: 0, path: '/' });
-    return redirectRes;
+    return NextResponse.redirect(targetUrl);
   }
 
-  // Public paths: /, /login, /signup, /api/auth, /_next, /uploads, static asset files
+  // Public paths that do not require authentication
   const isPublicPath =
     pathname === '/' ||
     pathname === '/login' ||
@@ -41,14 +40,14 @@ export async function proxy(req: NextRequest) {
     /\.(png|jpg|jpeg|gif|svg|ico|webp)$/i.test(pathname) ||
     pathname === '/favicon.ico';
 
-  // Protected paths: /team, /dashboard, /onboarding, /tasks, /daily-updates, /api/members, /api/tasks, /api/updates
+  // Protected paths: redirect unauthenticated requests to /login
   if (!token && !isPublicPath) {
     const loginUrl = new URL('/login', req.url);
     loginUrl.searchParams.set('callbackUrl', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  return res;
+  return NextResponse.next();
 }
 
 export const config = {

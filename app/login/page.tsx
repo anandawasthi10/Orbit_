@@ -31,8 +31,7 @@ export default function LoginPage() {
         redirect: false,
       });
       if (res?.error) throw new Error(res.error || 'Invalid email or password');
-      router.push('/dashboard');
-      router.refresh();
+      window.location.href = '/dashboard';
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -63,8 +62,7 @@ export default function LoginPage() {
         throw new Error(authRes.error || 'Failed to authenticate session with Google');
       }
 
-      router.push('/dashboard');
-      router.refresh();
+      window.location.href = '/dashboard';
     } catch (err: any) {
       console.error('Google Sign-In error:', err);
       if (err.code === 'auth/unauthorized-domain' || err.message?.includes('unauthorized-domain')) {
