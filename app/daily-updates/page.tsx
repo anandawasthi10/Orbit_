@@ -3,6 +3,18 @@
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import {
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
+  addDoc,
+  doc,
+  deleteDoc,
+  serverTimestamp,
+  Timestamp,
+} from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import {
   Send,
   Loader2,
   MessageSquare,
@@ -76,22 +88,73 @@ export default function DailyUpdatesPage() {
     setTimeout(() => setToastMsg(null), 3500);
   };
 
-  const fetchUpdates = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch('/api/updates');
-      if (!res.ok) throw new Error('Failed to fetch daily updates');
-      const data = await res.json();
-      setUpdates(Array.isArray(data) ? data : []);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Real-time Firestore sync with API fallback
   useEffect(() => {
-    fetchUpdates();
+    setLoading(true);
+    let unsubscribeFirestore: (() => void) | null = null;
+
+    try {
+      const updatesRef = collection(db, 'updates');
+      const q = query(updatesRef, orderBy('createdAt', 'desc'));
+
+      unsubscribeFirestore = onSnapshot(
+        q,
+        (snapshot) => {
+          if (!snapshot.empty) {
+            const list: IUpdate[] = [];
+            snapshot.forEach((docSnap) => {
+              const data = docSnap.data();
+              list.push({
+                _id: docSnap.id,
+                id: docSnap.id,
+                message: data.message,
+                type: data.type || 'general',
+                author: data.author || {
+                  _id: data.authorId || '',
+                  name: data.authorName || 'Teammate',
+                  role: data.authorRole || 'Member',
+                  avatarUrl: data.authorAvatar || '',
+                },
+                createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt || new Date().toISOString(),
+                updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate().toISOString() : data.updatedAt || new Date().toISOString(),
+              } as any);
+            });
+            setUpdates(list);
+            setLoading(false);
+          } else {
+            // Fallback to API if Firestore is empty
+            fetch('/api/updates')
+              .then((res) => res.json())
+              .then((data) => {
+                if (Array.isArray(data) && data.length > 0) {
+                  setUpdates(data);
+                }
+              })
+              .catch(console.warn)
+              .finally(() => setLoading(false));
+          }
+        },
+        (fsErr) => {
+          console.warn('Firestore updates onSnapshot warning, falling back to API:', fsErr);
+          fetch('/api/updates')
+            .then((res) => res.json())
+            .then((data) => setUpdates(Array.isArray(data) ? data : []))
+            .catch((e) => setError(e.message))
+            .finally(() => setLoading(false));
+        }
+      );
+    } catch (err: any) {
+      console.warn('Firestore subscription failed, using API:', err);
+      fetch('/api/updates')
+        .then((res) => res.json())
+        .then((data) => setUpdates(Array.isArray(data) ? data : []))
+        .catch((e) => setError(e.message))
+        .finally(() => setLoading(false));
+    }
+
+    return () => {
+      if (unsubscribeFirestore) unsubscribeFirestore();
+    };
   }, []);
 
   const handleSubmitUpdate = async (e: React.FormEvent) => {
@@ -99,17 +162,54 @@ export default function DailyUpdatesPage() {
     if (!message.trim()) return;
 
     setSubmitting(true);
+    const trimmedMessage = message.trim();
+    const updateType = type;
+
     try {
+      const authorInfo = {
+        _id: user?.id || user?._id || 'anon',
+        id: user?.id || user?._id || 'anon',
+        name: user?.name || 'Teammate',
+        role: user?.role || 'Team Member',
+        avatarUrl: user?.avatarUrl || '',
+        email: user?.email || '',
+      };
+
+      // 1. Post to Firestore for real-time live sync across all tabs & users
+      try {
+        await addDoc(collection(db, 'updates'), {
+          message: trimmedMessage,
+          type: updateType,
+          author: authorInfo,
+          authorId: authorInfo.id,
+          authorName: authorInfo.name,
+          authorRole: authorInfo.role,
+          authorAvatar: authorInfo.avatarUrl,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      } catch (fsErr) {
+        console.warn('Firestore addDoc update notice:', fsErr);
+      }
+
+      // 2. Sync with Backend API
       const res = await fetch('/api/updates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: message.trim(), type }),
+        body: JSON.stringify({ message: trimmedMessage, type: updateType }),
       });
 
-      if (!res.ok) throw new Error('Failed to post update');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to post update to server');
+      }
 
       const newEntry = await res.json();
-      setUpdates((prev) => [newEntry, ...prev]);
+      setUpdates((prev) => {
+        const exists = prev.some((u) => String(u._id || u.id) === String(newEntry._id || newEntry.id));
+        return exists ? prev : [newEntry, ...prev];
+      });
+
       setMessage('');
       setType('general');
       showToast('Daily update posted successfully!');
@@ -127,9 +227,16 @@ export default function DailyUpdatesPage() {
 
     setDeletingId(String(id));
     try {
+      // 1. Delete from Firestore if exists
+      try {
+        await deleteDoc(doc(db, 'updates', String(id)));
+      } catch (fsErr) {
+        console.warn('Firestore deleteDoc notice:', fsErr);
+      }
+
+      // 2. Delete from API
       const res = await fetch(`/api/updates/${id}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to delete update');
+      const data = await res.json().catch(() => ({}));
 
       setUpdates((prev) => prev.filter((u) => String(u._id || u.id) !== String(id)));
       showToast('Update deleted successfully.');
@@ -226,12 +333,12 @@ export default function DailyUpdatesPage() {
               {submitting ? (
                 <>
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  Posting...
+                  <span>Posting...</span>
                 </>
               ) : (
                 <>
                   <Send className="w-3.5 h-3.5" />
-                  Post Daily Update
+                  <span>Post Daily Update</span>
                 </>
               )}
             </button>
