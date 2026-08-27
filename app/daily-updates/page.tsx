@@ -4,14 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import {
   collection,
-  query,
-  orderBy,
   onSnapshot,
   addDoc,
   doc,
   deleteDoc,
   serverTimestamp,
-  Timestamp,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import {
@@ -88,22 +85,30 @@ export default function DailyUpdatesPage() {
     setTimeout(() => setToastMsg(null), 3500);
   };
 
-  // Real-time Firestore sync with API fallback
+  // Real-time Firestore sync with robust client-side ordering
   useEffect(() => {
     setLoading(true);
     let unsubscribeFirestore: (() => void) | null = null;
 
     try {
       const updatesRef = collection(db, 'updates');
-      const q = query(updatesRef, orderBy('createdAt', 'desc'));
 
       unsubscribeFirestore = onSnapshot(
-        q,
+        updatesRef,
         (snapshot) => {
           if (!snapshot.empty) {
             const list: IUpdate[] = [];
             snapshot.forEach((docSnap) => {
               const data = docSnap.data();
+              let createdIso = new Date().toISOString();
+              if (data.createdAt?.toDate) {
+                createdIso = data.createdAt.toDate().toISOString();
+              } else if (data.isoCreatedAt) {
+                createdIso = data.isoCreatedAt;
+              } else if (data.createdAt) {
+                createdIso = String(data.createdAt);
+              }
+
               list.push({
                 _id: docSnap.id,
                 id: docSnap.id,
@@ -115,18 +120,21 @@ export default function DailyUpdatesPage() {
                   role: data.authorRole || 'Member',
                   avatarUrl: data.authorAvatar || '',
                 },
-                createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt || new Date().toISOString(),
-                updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate().toISOString() : data.updatedAt || new Date().toISOString(),
+                createdAt: createdIso,
+                updatedAt: createdIso,
               } as any);
             });
+
+            // Sort newest first in memory
+            list.sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
             setUpdates(list);
             setLoading(false);
           } else {
-            // Fallback to API if Firestore is empty
+            // Fallback to API if Firestore has no docs yet
             fetch('/api/updates')
               .then((res) => res.json())
               .then((data) => {
-                if (Array.isArray(data) && data.length > 0) {
+                if (Array.isArray(data)) {
                   setUpdates(data);
                 }
               })
@@ -175,6 +183,8 @@ export default function DailyUpdatesPage() {
         email: user?.email || '',
       };
 
+      const nowIso = new Date().toISOString();
+
       // 1. Post to Firestore for real-time live sync across all tabs & users
       try {
         await addDoc(collection(db, 'updates'), {
@@ -185,6 +195,7 @@ export default function DailyUpdatesPage() {
           authorName: authorInfo.name,
           authorRole: authorInfo.role,
           authorAvatar: authorInfo.avatarUrl,
+          isoCreatedAt: nowIso,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
