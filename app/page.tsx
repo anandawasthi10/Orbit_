@@ -15,12 +15,14 @@ import {
   Terminal,
 } from 'lucide-react';
 import FluidGradientBg from '@/components/FluidGradientBg';
+import MinecraftCodeModal from '@/components/MinecraftCodeModal';
 
 // ── Figma asset URLs ───────────────────────────────────────────────────────────
 const imgPlanet = 'https://www.figma.com/api/mcp/asset/fb92c6a9-6875-4306-a119-c0be7b2ecbf5.png';
 const imgClock = 'https://www.figma.com/api/mcp/asset/73508a96-698b-43de-8806-e39e238f1815.png';
 
 export default function HomePage() {
+  const [showCodeModal, setShowCodeModal] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
   const reminderWrapRef = useRef<HTMLDivElement>(null);
   const yellowNoteWrapRef = useRef<HTMLDivElement>(null);
@@ -751,10 +753,11 @@ export default function HomePage() {
             </p>
 
             {/* ── GET STARTED Button ──────── */}
-            <Link
-              ref={btnRef}
-              href="/enter-code"
-              className="lp-btn"
+            <button
+              ref={btnRef as any}
+              type="button"
+              onClick={() => setShowCodeModal(true)}
+              className="lp-btn cursor-pointer"
               style={{
                 position: 'absolute',
                 left: '50%',
@@ -776,10 +779,12 @@ export default function HomePage() {
                 whiteSpace: 'nowrap',
                 boxShadow: '0 4px 14px rgba(0, 162, 255, 0.4)',
                 zIndex: 20,
+                border: 'none',
               }}
             >
               GET STARTED
-            </Link>
+            </button>
+
 
             {/* ── Reminders Card (Animates FIRST and attaches) ──────── */}
             <div
@@ -876,6 +881,14 @@ export default function HomePage() {
         </div>{/* end .lp-stage-wrap */}
 
       </div>{/* end .lp-wrap */}
+
+      {/* Minecraft Crafted Access Gatekeeper Modal */}
+      <MinecraftCodeModal
+        isOpen={showCodeModal}
+        onClose={() => setShowCodeModal(false)}
+        redirectTo="/login"
+      />
     </>
   );
 }
+

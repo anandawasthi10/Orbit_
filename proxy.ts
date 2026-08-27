@@ -32,6 +32,7 @@ export async function proxy(req: NextRequest) {
   // Public paths that do not require authentication
   const isPublicPath =
     pathname === '/' ||
+    pathname === '/enter-code' ||
     pathname === '/login' ||
     pathname === '/signup' ||
     pathname.startsWith('/api/auth') ||
@@ -40,8 +41,20 @@ export async function proxy(req: NextRequest) {
     /\.(png|jpg|jpeg|gif|svg|ico|webp)$/i.test(pathname) ||
     pathname === '/favicon.ico';
 
-  // Protected paths: redirect unauthenticated requests to /login
+  const hasAccessCookie = req.cookies.get('orbit_access_verified')?.value === 'true';
+
+  // If user has not verified the access code (no cookie) and tries to visit /login or /signup directly without token
+  if (!hasAccessCookie && !token && (pathname === '/login' || pathname === '/signup')) {
+    const codeUrl = new URL('/enter-code', req.url);
+    return NextResponse.redirect(codeUrl);
+  }
+
+  // Protected workspace paths: redirect unauthenticated requests to /enter-code (or /login if verified)
   if (!token && !isPublicPath) {
+    if (!hasAccessCookie) {
+      const codeUrl = new URL('/enter-code', req.url);
+      return NextResponse.redirect(codeUrl);
+    }
     const loginUrl = new URL('/login', req.url);
     loginUrl.searchParams.set('callbackUrl', pathname);
     return NextResponse.redirect(loginUrl);
@@ -49,6 +62,7 @@ export async function proxy(req: NextRequest) {
 
   return NextResponse.next();
 }
+
 
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)).*)'],
