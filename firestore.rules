@@ -1,0 +1,74 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.email == 'anandawasthi610@gmail.com' ||
+        (request.auth.token.role != null && (
+          request.auth.token.role.matches('(?i).*(admin|lead|manager|ceo|founder).*')
+        ))
+      );
+    }
+
+    function isAssignedMember(taskData) {
+      return isAuthenticated() && (
+        taskData.assignedTo == request.auth.uid ||
+        (taskData.assignedTo != null && taskData.assignedTo.id == request.auth.uid) ||
+        (taskData.assignedTo != null && taskData.assignedTo._id == request.auth.uid)
+      );
+    }
+
+    // 1. Tasks Collection
+    // - Authenticated users can read tasks.
+    // - Admins can create, update, delete any task.
+    // - Assigned members can only update submission and status fields on tasks assigned to them.
+    match /tasks/{taskId} {
+      allow read: if isAuthenticated();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        isAuthenticated() &&
+        isAssignedMember(resource.data) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'submittedAt',
+          'submittedBy',
+          'submittedByName',
+          'submissionNote',
+          'submissionFile',
+          'submissionFiles',
+          'submissionLink',
+          'submission',
+          'updatedAt'
+        ])
+      );
+    }
+
+    // 2. Notifications Collection
+    // - Members can only create notification docs of type 'task_submitted'.
+    // - Admins can read, update (mark as read), and delete notifications.
+    match /notifications/{notificationId} {
+      allow create: if isAuthenticated() &&
+        request.resource.data.type == 'task_submitted' &&
+        (request.resource.data.memberId == request.auth.uid || request.resource.data.memberId != null);
+      allow read, update, delete: if isAdmin();
+    }
+
+    // 3. Submissions Collection
+    match /submissions/{submissionId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+
+    // 4. Default fallback for other collections
+    match /{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+  }
+}

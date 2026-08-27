@@ -48,6 +48,7 @@ import {
   Flag,
 } from 'lucide-react';
 import TopHeader from '@/components/TopHeader';
+import SubmitTaskModal from '@/components/SubmitTaskModal';
 import { ITask, IMember, IProject, ISubmission } from '@/types';
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string; border: string; dot: string }> = {
@@ -370,13 +371,6 @@ function TasksContent() {
   });
 
   const [submittingTask, setSubmittingTask] = useState<any | null>(null);
-  const [submitForm, setSubmitForm] = useState({
-    link: '',
-    screenshotUrl: '',
-    note: '',
-  });
-  const [submitError, setSubmitError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [reviewingTask, setReviewingTask] = useState<any | null>(null);
   const [reviewSubmission, setReviewSubmission] = useState<any | null>(null);
@@ -421,6 +415,20 @@ function TasksContent() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Handle deep-linked task from notification click
+  useEffect(() => {
+    if (highlightTaskId && tasks.length > 0) {
+      const target = tasks.find((t) => (t._id || t.id) === highlightTaskId);
+      if (target) {
+        if (isAdmin || target.status === 'submitted' || target.status === 'approved' || target.status === 'completed' || target.submission) {
+          handleOpenReviewModal(target);
+        } else {
+          setSubmittingTask(target);
+        }
+      }
+    }
+  }, [highlightTaskId, tasks, isAdmin]);
 
   // Filter tasks based on view mode (all vs my tasks)
   const currentUserId = (sessionUser as any)?.id;
@@ -473,70 +481,6 @@ function TasksContent() {
   // Submit Task Work Handler (Team Member)
   const handleOpenSubmitModal = (task: any) => {
     setSubmittingTask(task);
-    setSubmitForm({ link: '', screenshotUrl: '', note: '' });
-    setSubmitError('');
-  };
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        setSubmitError('Image size must be less than 5MB');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setSubmitForm((prev) => ({ ...prev, screenshotUrl: reader.result as string }));
-        setSubmitError('');
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleSubmitWork = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!submittingTask) return;
-
-    if (!submitForm.link.trim()) {
-      setSubmitError('Submission link URL is required');
-      return;
-    }
-
-    const urlPattern = /^(https?:\/\/)?([\w.-]+)+(:\d+)?(\/.*)?$/i;
-    if (!urlPattern.test(submitForm.link.trim())) {
-      setSubmitError('Please enter a valid URL (e.g. https://github.com/... or https://mydemo.com)');
-      return;
-    }
-
-    setIsSubmitting(true);
-    setSubmitError('');
-
-    try {
-      const taskId = submittingTask._id || submittingTask.id;
-      const res = await fetch('/api/submissions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          taskId,
-          link: submitForm.link.trim(),
-          screenshotUrl: submitForm.screenshotUrl,
-          note: submitForm.note.trim(),
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to submit task');
-      }
-
-      setSubmittingTask(null);
-      showToast('Task submitted successfully! Admin notified.');
-      fetchData();
-    } catch (err: any) {
-      setSubmitError(err.message || 'Submission failed');
-    } finally {
-      setIsSubmitting(false);
-    }
   };
 
   // Review Submission Handler (Admin)
@@ -547,10 +491,30 @@ function TasksContent() {
       const res = await fetch(`/api/submissions?taskId=${taskId}`);
       if (res.ok) {
         const subs = await res.json();
-        setReviewSubmission(subs[0] || task.submission || null);
+        if (subs && subs.length > 0) {
+          setReviewSubmission(subs[0]);
+          return;
+        }
       }
     } catch (err) {
       console.error('Fetch submission error:', err);
+    }
+
+    // Fallback to task document fields (e.g. from Firestore update)
+    if (task.submission) {
+      setReviewSubmission(task.submission);
+    } else if (task.submissionLink || task.submissionNote || task.submissionFile) {
+      setReviewSubmission({
+        taskId,
+        link: task.submissionLink || '',
+        screenshotUrl: task.submissionFile || (task.submissionFiles ? task.submissionFiles[0] : ''),
+        note: task.submissionNote || '',
+        status: task.status || 'submitted',
+        submittedAt: task.submittedAt || task.updatedAt,
+        submittedBy: task.assignedTo || { name: task.submittedByName || 'Team Member' },
+      });
+    } else {
+      setReviewSubmission(null);
     }
   };
 
@@ -693,15 +657,17 @@ function TasksContent() {
             </div>
           </div>
 
-          {/* Action: Assign Task (Admin) */}
-          <button
-            type="button"
-            onClick={() => setShowAssignModal(true)}
-            className="w-full md:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            Assign New Task
-          </button>
+          {/* Action: Assign Task (Admin Only) */}
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => setShowAssignModal(true)}
+              className="w-full md:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              Assign New Task
+            </button>
+          )}
         </div>
 
         {/* Loading Spinner */}
@@ -884,136 +850,15 @@ function TasksContent() {
         </div>
       )}
 
-      {/* MODAL 2: Team Member "Submit Task" Modal */}
-      {submittingTask && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-lg p-6 shadow-2xl space-y-5 relative">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                  <Send className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">Submit Completed Work</h3>
-                  <p className="text-xs text-slate-500 truncate max-w-72">Task: {submittingTask.title}</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSubmittingTask(null)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {submitError && (
-              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{submitError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmitWork} className="space-y-4">
-              {/* Submission Link (Required) */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Submission Link (Required) *
-                </label>
-                <input
-                  type="url"
-                  required
-                  value={submitForm.link}
-                  onChange={(e) => setSubmitForm({ ...submitForm, link: e.target.value })}
-                  placeholder="https://github.com/myrepo or https://mydemo.vercel.app"
-                  className="w-full px-3.5 py-2 rounded-xl saas-input text-xs"
-                />
-                <p className="text-[11px] text-slate-400 mt-1">Provide live demo URL, GitHub repository, Figma link, or Google Drive doc.</p>
-              </div>
-
-              {/* Optional Screenshot File Upload & Preview */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Screenshot / Photo Upload (Optional)
-                </label>
-                {submitForm.screenshotUrl ? (
-                  <div className="relative rounded-xl border border-slate-200 overflow-hidden bg-slate-50 p-2 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={submitForm.screenshotUrl}
-                        alt="Preview"
-                        className="w-16 h-12 rounded-lg object-cover border border-slate-200"
-                      />
-                      <span className="text-xs font-semibold text-slate-700">Image Uploaded</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setSubmitForm((prev) => ({ ...prev, screenshotUrl: '' }))}
-                      className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"
-                      title="Remove image"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <label className="border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer bg-slate-50/50 hover:bg-blue-50/30 transition-all">
-                    <Upload className="w-6 h-6 text-slate-400 mb-1" />
-                    <span className="text-xs font-bold text-slate-700">Click to upload screenshot</span>
-                    <span className="text-[10px] text-slate-400">PNG or JPG up to 5MB</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="hidden"
-                    />
-                  </label>
-                )}
-              </div>
-
-              {/* Optional Comment Note */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Submission Note / Comment (Optional)
-                </label>
-                <textarea
-                  rows={2}
-                  value={submitForm.note}
-                  onChange={(e) => setSubmitForm({ ...submitForm, note: e.target.value })}
-                  placeholder="Summary of completed milestones or instructions for admin..."
-                  className="w-full px-3.5 py-2 rounded-xl saas-input text-xs"
-                />
-              </div>
-
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSubmittingTask(null)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting || !submitForm.link.trim()}
-                  className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md disabled:opacity-50 flex items-center gap-2"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Submitting...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-3.5 h-3.5" />
-                      <span>Submit Task to Admin</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* MODAL 2: Team Member "Submit Task" Modal (GSAP Animated + Firebase Storage/Firestore Sync) */}
+      <SubmitTaskModal
+        isOpen={Boolean(submittingTask)}
+        onClose={() => setSubmittingTask(null)}
+        task={submittingTask}
+        sessionUser={sessionUser}
+        onSubmitSuccess={() => fetchData()}
+        showToast={showToast}
+      />
 
       {/* MODAL 3: Admin "Review Submission" Modal */}
       {reviewingTask && (

@@ -77,10 +77,19 @@ export async function POST(req: NextRequest) {
       submittedAt: new Date(),
     });
 
-    // 2. Update Task status to 'submitted'
+    // 2. Update Task status and submission fields
     const targetTask = await Task.findByIdAndUpdate(
       taskId,
-      { status: 'submitted' },
+      {
+        status: 'submitted',
+        submittedAt: new Date().toISOString(),
+        submittedBy: submitterId,
+        submittedByName: submitterName,
+        submissionNote: note ? note.trim() : '',
+        submissionFile: screenshotUrl || '',
+        submissionFiles: screenshotUrl ? [screenshotUrl] : [],
+        submissionLink: link.trim(),
+      },
       { new: true }
     );
 

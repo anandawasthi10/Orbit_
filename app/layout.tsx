@@ -23,6 +23,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Merriweather:ital,opsz,wght@0,18..144,300..900;1,18..144,300..900&display=swap"
           rel="stylesheet"
         />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Rubik+Doodle+Shadow&family=Sour+Gummy:wght@100..900&family=Kumbh+Sans:wght@300;400;700&family=Plus+Jakarta+Sans:wght@300;400;700&family=Potta+One&family=Roboto:wght@700&display=swap"
+          rel="stylesheet"
+        />
       </head>
       <body className="antialiased min-h-screen bg-[#F7F8FA] text-slate-900 selection:bg-blue-500 selection:text-white">
         <Providers>

@@ -27,6 +27,13 @@ export interface ITask {
   priority?: 'low' | 'medium' | 'high' | string;
   deadline?: string | null;
   submission?: ISubmission | null;
+  submittedAt?: string | null;
+  submittedBy?: IMember | string | null;
+  submittedByName?: string;
+  submissionNote?: string;
+  submissionFile?: string;
+  submissionFiles?: string[];
+  submissionLink?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -48,15 +55,19 @@ export interface ISubmission {
 export interface INotification {
   _id?: string;
   id?: string;
+  type?: 'task_submitted' | string;
+  taskId: string;
+  taskTitle: string;
+  memberName?: string;
+  memberId?: string;
   adminId?: string;
   submitterName?: string;
-  taskTitle?: string;
-  message: string;
-  taskId: string;
+  message?: string;
   submissionId?: string;
-  isRead: boolean;
-  createdAt?: string;
-  updatedAt?: string;
+  read?: boolean;
+  isRead?: boolean;
+  createdAt?: any;
+  updatedAt?: any;
 }
 
 export interface IProject {

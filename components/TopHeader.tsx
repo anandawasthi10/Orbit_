@@ -7,6 +7,8 @@ import { useSession } from 'next-auth/react';
 import { Search, Bell, Users, CheckSquare, Loader2, X, ExternalLink, Inbox } from 'lucide-react';
 import { IMember, ITask, INotification } from '@/types';
 
+import NotificationBell from '@/components/NotificationBell';
+
 interface TopHeaderProps {
   title: string;
   subtitle?: string;
@@ -71,40 +73,6 @@ export default function TopHeader({ title, subtitle }: TopHeaderProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
-  // Notification State
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [notificationsList, setNotificationsList] = useState<INotification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  const fetchNotifications = async () => {
-    try {
-      const res = await fetch('/api/notifications');
-      if (res.ok) {
-        const data = await res.json();
-        setNotificationsList(data.notifications || []);
-        setUnreadCount(data.unreadCount || 0);
-      }
-    } catch (err) {
-      console.error('Failed to fetch notifications', err);
-    }
-  };
-
-  useEffect(() => {
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 10000); // Polling every 10s for new task submissions
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleMarkAllRead = async () => {
-    try {
-      await fetch('/api/notifications', { method: 'PATCH' });
-      setNotificationsList((prev) => prev.map((n) => ({ ...n, isRead: true })));
-      setUnreadCount(0);
-    } catch (err) {
-      console.error('Failed to mark notifications read', err);
-    }
-  };
-
   // Global '/' Keyboard Shortcut to Focus Search Bar
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -119,7 +87,6 @@ export default function TopHeader({ title, subtitle }: TopHeaderProps) {
 
       if (e.key === 'Escape') {
         setShowSearchDropdown(false);
-        setShowNotifications(false);
       }
     };
 
@@ -330,105 +297,8 @@ export default function TopHeader({ title, subtitle }: TopHeaderProps) {
           </div>
         )}
 
-        {/* Notifications Icon & Popover (Admin Only) */}
-        {isAdmin && (
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                setShowNotifications(!showNotifications);
-                fetchNotifications();
-              }}
-              className="p-2 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 hover:text-slate-900 relative transition-colors"
-              title="Notifications"
-            >
-              <Bell className="w-4 h-4" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 px-1.5 py-0.2 rounded-full bg-blue-600 text-white text-[9px] font-extrabold ring-2 ring-white animate-pulse">
-                  {unreadCount}
-                </span>
-              )}
-            </button>
-
-            {showNotifications && (
-              <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-slate-200 rounded-xl p-4 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-150 space-y-3">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-xs font-bold text-slate-900">Task Submission Alerts</h4>
-                    {unreadCount > 0 && (
-                      <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-extrabold text-[10px]">
-                        {unreadCount} new
-                      </span>
-                    )}
-                  </div>
-                  {unreadCount > 0 && (
-                    <button
-                      type="button"
-                      onClick={handleMarkAllRead}
-                      className="text-[11px] font-semibold text-blue-600 hover:text-blue-700"
-                    >
-                      Mark all read
-                    </button>
-                  )}
-                </div>
-
-                <div className="space-y-2 max-h-72 overflow-y-auto">
-                  {notificationsList.length === 0 ? (
-                    <div className="py-8 text-center text-slate-400 space-y-1">
-                      <Inbox className="w-6 h-6 mx-auto text-slate-300" />
-                      <p className="text-xs font-medium">No submission alerts yet</p>
-                    </div>
-                  ) : (
-                    notificationsList.map((n) => (
-                      <div
-                        key={n._id || n.id}
-                        onClick={() => {
-                          setShowNotifications(false);
-                          router.push('/tasks');
-                        }}
-                        className={`p-3 rounded-xl border text-xs cursor-pointer transition-all hover:border-blue-300 ${
-                          !n.isRead
-                            ? 'bg-blue-50/60 border-blue-200'
-                            : 'bg-slate-50/50 border-slate-200/80'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-1">
-                          <p className="font-bold text-slate-900 leading-snug">{n.message}</p>
-                          {!n.isRead && (
-                            <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0 mt-1" />
-                          )}
-                        </div>
-                        <div className="flex items-center justify-between mt-2 pt-1 border-t border-slate-100 text-[10px] text-slate-500 font-medium">
-                          <span>Click to review submission</span>
-                          <span className="font-semibold text-blue-600 flex items-center gap-0.5">
-                            View in Task Manager <ExternalLink className="w-2.5 h-2.5" />
-                          </span>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
-                  <Link
-                    href="/tasks"
-                    onClick={() => setShowNotifications(false)}
-                    className="font-bold text-blue-600 hover:text-blue-700"
-                  >
-                    Go to Task Manager →
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => setShowNotifications(false)}
-                    className="text-slate-400 hover:text-slate-600 font-semibold"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        {/* Real-time Notifications Bell (Admin Only) */}
+        <NotificationBell isAdmin={isAdmin} />
       </div>
     </header>
   );

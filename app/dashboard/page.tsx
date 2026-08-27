@@ -28,8 +28,10 @@ import {
   UserCheck,
   UserX,
   Clock,
+  Send,
 } from 'lucide-react';
 import TopHeader from '@/components/TopHeader';
+import SubmitTaskModal from '@/components/SubmitTaskModal';
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string; border: string; dot: string }> = {
   Research: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-500' },
@@ -112,6 +114,15 @@ export default function DashboardPage() {
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [newUpdateText, setNewUpdateText] = useState('');
   const [localUpdates, setLocalUpdates] = useState<any[]>([]);
+
+  // Member Task Submission Modal State
+  const [submittingTask, setSubmittingTask] = useState<any | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3500);
+  };
 
   // Time of Day Greeting
   const [greeting, setGreeting] = useState('Good evening');
@@ -337,6 +348,14 @@ export default function DashboardPage() {
         title={`${greeting}, ${user?.name?.split(' ')[0] || 'Team'}`}
         subtitle="Track our Orbit progress and stay aligned."
       />
+
+      {/* Optimistic Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-20 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 border border-slate-700 animate-in fade-in slide-in-from-top-4 duration-200">
+          <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+          <span className="text-xs font-bold">{toastMessage}</span>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20 text-slate-500">
@@ -773,15 +792,33 @@ export default function DashboardPage() {
                     {tasksTodo.length === 0 ? (
                       <p className="text-[11px] text-slate-400 py-3 text-center">No tasks to do</p>
                     ) : (
-                      tasksTodo.map((t: any) => (
-                        <div key={t._id || t.id} className="p-2.5 rounded-lg bg-white border border-slate-200 shadow-2xs space-y-1">
-                          <p className="text-xs font-bold text-slate-900 leading-snug">{t.title}</p>
-                          <div className="flex items-center justify-between text-[10px] text-slate-500">
-                            <span className="px-1.5 py-0.2 rounded bg-slate-100 font-semibold">{t.category}</span>
-                            {t.assignedTo && <MemberAvatar src={t.assignedTo.avatarUrl} name={t.assignedTo.name} size="w-4 h-4" />}
+                      tasksTodo.map((t: any) => {
+                        const assignedToId = t.assignedTo?._id || t.assignedTo?.id || t.assignedTo;
+                        const isAssignedToMe = assignedToId && String(assignedToId) === String(user?.id);
+
+                        return (
+                          <div key={t._id || t.id} className="p-2.5 rounded-lg bg-white border border-slate-200 shadow-2xs space-y-1.5 group">
+                            <p className="text-xs font-bold text-slate-900 leading-snug">{t.title}</p>
+                            <div className="flex items-center justify-between text-[10px] text-slate-500">
+                              <span className="px-1.5 py-0.2 rounded bg-slate-100 font-semibold">{t.category}</span>
+                              <div className="flex items-center gap-1.5">
+                                {(isAssignedToMe || isAdmin) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setSubmittingTask(t)}
+                                    className="px-2 py-0.5 rounded bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] shadow-2xs transition-colors flex items-center gap-1"
+                                    title="Submit Completed Work"
+                                  >
+                                    <Send className="w-2.5 h-2.5" />
+                                    <span>Submit</span>
+                                  </button>
+                                )}
+                                {t.assignedTo && <MemberAvatar src={t.assignedTo.avatarUrl} name={t.assignedTo.name} size="w-4 h-4" />}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
                 </div>
@@ -798,15 +835,33 @@ export default function DashboardPage() {
                     {tasksInProgress.length === 0 ? (
                       <p className="text-[11px] text-slate-400 py-3 text-center">No active tasks</p>
                     ) : (
-                      tasksInProgress.map((t: any) => (
-                        <div key={t._id || t.id} className="p-2.5 rounded-lg bg-white border border-blue-200 shadow-2xs space-y-1">
-                          <p className="text-xs font-bold text-slate-900 leading-snug">{t.title}</p>
-                          <div className="flex items-center justify-between text-[10px] text-slate-500">
-                            <span className="px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 font-semibold">{t.category}</span>
-                            {t.assignedTo && <MemberAvatar src={t.assignedTo.avatarUrl} name={t.assignedTo.name} size="w-4 h-4" />}
+                      tasksInProgress.map((t: any) => {
+                        const assignedToId = t.assignedTo?._id || t.assignedTo?.id || t.assignedTo;
+                        const isAssignedToMe = assignedToId && String(assignedToId) === String(user?.id);
+
+                        return (
+                          <div key={t._id || t.id} className="p-2.5 rounded-lg bg-white border border-blue-200 shadow-2xs space-y-1.5 group">
+                            <p className="text-xs font-bold text-slate-900 leading-snug">{t.title}</p>
+                            <div className="flex items-center justify-between text-[10px] text-slate-500">
+                              <span className="px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 font-semibold">{t.category}</span>
+                              <div className="flex items-center gap-1.5">
+                                {(isAssignedToMe || isAdmin) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setSubmittingTask(t)}
+                                    className="px-2 py-0.5 rounded bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] shadow-2xs transition-colors flex items-center gap-1"
+                                    title="Submit Completed Work"
+                                  >
+                                    <Send className="w-2.5 h-2.5" />
+                                    <span>Submit</span>
+                                  </button>
+                                )}
+                                {t.assignedTo && <MemberAvatar src={t.assignedTo.avatarUrl} name={t.assignedTo.name} size="w-4 h-4" />}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
                 </div>
@@ -1055,6 +1110,16 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Member Task Submission Modal */}
+      <SubmitTaskModal
+        isOpen={Boolean(submittingTask)}
+        onClose={() => setSubmittingTask(null)}
+        task={submittingTask}
+        sessionUser={user}
+        onSubmitSuccess={() => loadAllDashboardData()}
+        showToast={showToast}
+      />
     </div>
   );
 }

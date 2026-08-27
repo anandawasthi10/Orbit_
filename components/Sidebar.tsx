@@ -15,7 +15,9 @@ import {
   User,
   UserPlus,
   ShieldCheck,
+  Pencil,
 } from 'lucide-react';
+import EditProfileModal from '@/components/EditProfileModal';
 
 interface UserAvatarProps {
   src?: string | null;
@@ -49,15 +51,24 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const user = session?.user as any;
+  const [profileName, setProfileName] = useState(user?.name || '');
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState(user?.avatarUrl || '');
   const [profileRole, setProfileRole] = useState(user?.role || '');
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
+      setProfileName(user.name || '');
+      setProfileAvatarUrl(user.avatarUrl || '');
+      setProfileRole(user.role || '');
+
       fetch('/api/members/me')
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
-          if (data && data.role) {
-            setProfileRole(data.role);
+          if (data) {
+            if (data.name) setProfileName(data.name);
+            if (data.avatarUrl) setProfileAvatarUrl(data.avatarUrl);
+            if (data.role) setProfileRole(data.role);
           }
         })
         .catch(() => {});
@@ -180,31 +191,48 @@ export default function Sidebar() {
       {/* Bottom User Account Panel */}
       {user ? (
         <div className="p-3 border-t border-slate-800/80 mt-auto bg-slate-950/40 shrink-0 relative z-10">
-          <div className="flex items-center justify-between p-2 rounded-xl">
-            <Link
-              href="/onboarding"
-              className="flex items-center gap-2.5 overflow-hidden hover:opacity-80 transition-opacity"
-              title="View & Edit Profile"
+          <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900/40 border border-slate-800/50 hover:border-slate-700/60 transition-colors">
+            <button
+              type="button"
+              onClick={() => setIsEditProfileOpen(true)}
+              className="flex items-center gap-2.5 overflow-hidden text-left hover:opacity-90 transition-opacity flex-1 min-w-0 mr-1"
+              title="Click to edit profile picture & name"
             >
-              <UserAvatar src={user.avatarUrl} name={user.name} />
+              <div className="relative group">
+                <UserAvatar src={profileAvatarUrl || user.avatarUrl} name={profileName || user.name} />
+                <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
+                  <Pencil className="w-3 h-3" />
+                </div>
+              </div>
               <div className="flex flex-col min-w-0">
-                <span className="text-xs font-bold text-white truncate leading-tight">
-                  {user.name}
+                <span className="text-xs font-bold text-white truncate leading-tight flex items-center gap-1">
+                  {profileName || user.name}
                 </span>
                 <span className="text-[10px] text-slate-400 truncate">
                   {profileRole || user.role || 'Member'}
                 </span>
               </div>
-            </Link>
-
-            <button
-              type="button"
-              onClick={() => signOut({ callbackUrl: '/' })}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-              title="Logout"
-            >
-              <LogOut className="w-4 h-4" />
             </button>
+
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsEditProfileOpen(true)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 transition-colors"
+                title="Edit Profile"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => signOut({ callbackUrl: '/' })}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                title="Logout"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       ) : (
@@ -218,6 +246,17 @@ export default function Sidebar() {
           </Link>
         </div>
       )}
+
+      {/* Edit Profile Modal */}
+      <EditProfileModal
+        isOpen={isEditProfileOpen}
+        onClose={() => setIsEditProfileOpen(false)}
+        onProfileUpdated={(updated) => {
+          if (updated.name) setProfileName(updated.name);
+          if (updated.avatarUrl) setProfileAvatarUrl(updated.avatarUrl);
+          if (updated.role) setProfileRole(updated.role);
+        }}
+      />
     </aside>
   );
 }
