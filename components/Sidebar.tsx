@@ -16,8 +16,10 @@ import {
   UserPlus,
   ShieldCheck,
   Pencil,
+  Megaphone,
 } from 'lucide-react';
 import EditProfileModal from '@/components/EditProfileModal';
+import { useAnnouncements } from '@/hooks/useAnnouncements';
 
 interface UserAvatarProps {
   src?: string | null;
@@ -56,6 +58,8 @@ export default function Sidebar() {
   const [profileRole, setProfileRole] = useState(user?.role || '');
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
 
+  const { unreadCount } = useAnnouncements();
+
   useEffect(() => {
     if (user) {
       setProfileName(user.name || '');
@@ -89,6 +93,7 @@ export default function Sidebar() {
   const navItems = isAdmin
     ? [
         { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+        { label: 'Announcements', href: '/announcements', icon: Megaphone, count: unreadCount },
         { label: 'Admin Control', href: '/admin', icon: ShieldCheck },
         { label: 'Team Workspace', href: '/teams', icon: UserPlus },
         { label: 'Member Directory', href: '/team', icon: Users },
@@ -99,6 +104,7 @@ export default function Sidebar() {
       ]
     : [
         { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+        { label: 'Announcements', href: '/announcements', icon: Megaphone, count: unreadCount },
         { label: 'Team', href: '/teams', icon: UserPlus },
         { label: 'Tasks', href: '/tasks', icon: CheckSquare },
         { label: 'Projects', href: '/projects', icon: FolderKanban },
@@ -172,17 +178,30 @@ export default function Sidebar() {
                 <Icon className={`w-4.5 h-4.5 shrink-0 ${isActive ? 'text-white' : 'text-slate-300 group-hover:text-white'}`} />
                 <span className="truncate">{item.label}</span>
               </div>
-              {(item as any).badge && (
-                <span
-                  className={`text-[9px] font-black px-1.5 py-0.2 rounded-md uppercase tracking-wider shrink-0 ${
-                    isActive
-                      ? 'bg-white/25 text-white'
-                      : 'bg-purple-500/20 text-purple-300 border border-purple-400/30'
-                  }`}
-                >
-                  {(item as any).badge}
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                {Boolean(item.count && item.count > 0) && (
+                  <span
+                    className={`text-[10px] font-black px-2 py-0.5 rounded-full shrink-0 ${
+                      isActive
+                        ? 'bg-white text-blue-600 font-black'
+                        : 'bg-rose-500 text-white shadow-[0_0_8px_rgba(244,63,94,0.6)]'
+                    }`}
+                  >
+                    {item.count! > 99 ? '99+' : item.count}
+                  </span>
+                )}
+                {(item as any).badge && (
+                  <span
+                    className={`text-[9px] font-black px-1.5 py-0.2 rounded-md uppercase tracking-wider shrink-0 ${
+                      isActive
+                        ? 'bg-white/25 text-white'
+                        : 'bg-purple-500/20 text-purple-300 border border-purple-400/30'
+                    }`}
+                  >
+                    {(item as any).badge}
+                  </span>
+                )}
+              </div>
             </Link>
           );
         })}

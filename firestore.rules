@@ -4,6 +4,10 @@ service cloud.firestore {
 
     // Allow read/write across Orbit workspace collections for real-time collaboration
     // Compatible with both NextAuth credentials sessions and Google OAuth
+    match /announcements/{announcementId} {
+      allow read, write: if true;
+    }
+
     match /updates/{updateId} {
       allow read, write: if true;
     }

@@ -52,6 +52,20 @@ export interface ISubmission {
   updatedAt?: string;
 }
 
+export interface IAnnouncement {
+  _id?: string;
+  id?: string;
+  authorId: string;
+  authorName: string;
+  authorAvatar?: string;
+  authorRole: 'admin' | 'member' | string;
+  message: string;
+  isPending?: boolean;
+  createdAt?: any;
+  isoCreatedAt?: string;
+  updatedAt?: any;
+}
+
 export interface INotification {
   _id?: string;
   id?: string;
