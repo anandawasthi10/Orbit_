@@ -753,7 +753,7 @@ export default function HomePage() {
             {/* ── GET STARTED Button ──────── */}
             <Link
               ref={btnRef}
-              href="/signup"
+              href="/enter-code"
               className="lp-btn"
               style={{
                 position: 'absolute',
