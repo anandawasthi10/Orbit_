@@ -105,18 +105,42 @@ export default function DailyUpdatesPage() {
         map.set(id, u);
       }
     });
-    return Array.from(map.values())
+    const result = Array.from(map.values())
       .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
+
+    // Save to local cache for 0ms instant display on next reload
+    if (typeof window !== 'undefined' && result.length > 0) {
+      try {
+        localStorage.setItem('orbit_cached_daily_updates', JSON.stringify(result.slice(0, 100)));
+      } catch (_) {}
+    }
+
+    return result;
   }
 
-  // Fetch from persistent API (MongoDB / fileDb)
+  // 1. Instant 0ms hydration from localStorage on mount
   useEffect(() => {
-    setLoading(true);
-    fetch('/api/updates', { credentials: 'include' })
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('orbit_cached_daily_updates');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setUpdates(parsed);
+            apiItemsRef.current = parsed;
+            setLoading(false);
+          }
+        }
+      } catch (_) {}
+    }
+  }, []);
+
+  // 2. Fetch from persistent API (MongoDB / fileDb)
+  useEffect(() => {
+    fetch('/api/updates', { credentials: 'include', cache: 'no-store' })
       .then(async (r) => {
         const contentType = r.headers.get('content-type') || '';
         if (!r.ok || !contentType.includes('application/json')) {
-          console.warn('Updates API returned non-JSON (possibly redirected to login)');
           return [];
         }
         return r.json();
@@ -138,17 +162,20 @@ export default function DailyUpdatesPage() {
             updatedAt: u.isoCreatedAt || u.updatedAt || new Date().toISOString(),
           }));
           apiItemsRef.current = normalized;
-          setUpdates(mergeAll());
+          const merged = mergeAll();
+          setUpdates(merged);
           setLoading(false);
         }
       })
       .catch((e) => {
         console.warn('Updates API fetch error:', e);
+      })
+      .finally(() => {
         setLoading(false);
       });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Subscribe to Firestore for live real-time updates
+  // 3. Subscribe to Firestore for live real-time updates (includeMetadataChanges: true)
   useEffect(() => {
     let unsubscribeFirestore: (() => void) | null = null;
 
@@ -156,6 +183,7 @@ export default function DailyUpdatesPage() {
       const updatesRef = collection(db, 'updates');
       unsubscribeFirestore = onSnapshot(
         updatesRef,
+        { includeMetadataChanges: true },
         (snapshot) => {
           const list: IUpdate[] = [];
           snapshot.forEach((docSnap) => {
@@ -189,18 +217,23 @@ export default function DailyUpdatesPage() {
           });
 
           firestoreItemsRef.current = list;
-          setUpdates(mergeAll());
+          const merged = mergeAll();
+          setUpdates(merged);
           setLoading(false);
         },
         (fsErr) => {
           console.warn('Firestore updates error, using API data only:', fsErr);
-          setUpdates(apiItemsRef.current.length > 0 ? apiItemsRef.current : []);
+          if (apiItemsRef.current.length > 0) {
+            setUpdates(apiItemsRef.current);
+          }
           setLoading(false);
         }
       );
     } catch (err: any) {
       console.warn('Firestore subscription failed, using API:', err);
-      setUpdates(apiItemsRef.current);
+      if (apiItemsRef.current.length > 0) {
+        setUpdates(apiItemsRef.current);
+      }
       setLoading(false);
     }
 
@@ -208,6 +241,7 @@ export default function DailyUpdatesPage() {
       if (unsubscribeFirestore) unsubscribeFirestore();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
 
   // Instant Optimistic Submit (0ms Response Time)
   const handleSubmitUpdate = async (e: React.FormEvent) => {
@@ -242,7 +276,14 @@ export default function DailyUpdatesPage() {
     setMessage('');
     setType('general');
     setSubmitting(true);
-    setUpdates((prev) => [optimisticEntry, ...prev]);
+    const immediateList = [optimisticEntry, ...updates.filter((u) => String(u._id || u.id) !== tempId)];
+    apiItemsRef.current = [optimisticEntry, ...apiItemsRef.current.filter((u) => String(u._id || u.id) !== tempId)];
+    setUpdates(immediateList);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('orbit_cached_daily_updates', JSON.stringify(immediateList.slice(0, 100)));
+      } catch (_) {}
+    }
     showToast('Daily update posted!');
 
     try {
@@ -289,11 +330,17 @@ export default function DailyUpdatesPage() {
             updatedAt: nowIso,
           };
           // Add real entry to ref and remove temp
-          apiItemsRef.current = [persistedEntry, ...apiItemsRef.current.filter(u => String(u._id || u.id) !== tempId)];
+          apiItemsRef.current = [persistedEntry, ...apiItemsRef.current.filter((u) => String(u._id || u.id) !== tempId && String(u._id || u.id) !== realId)];
           // Replace temp entry with real one in UI
           setUpdates((prev) => {
-            const withoutTemp = prev.filter(u => String(u._id || u.id) !== tempId);
-            return [persistedEntry, ...withoutTemp];
+            const withoutTemp = prev.filter((u) => String(u._id || u.id) !== tempId && String(u._id || u.id) !== realId);
+            const newList = [persistedEntry, ...withoutTemp];
+            if (typeof window !== 'undefined') {
+              try {
+                localStorage.setItem('orbit_cached_daily_updates', JSON.stringify(newList.slice(0, 100)));
+              } catch (_) {}
+            }
+            return newList;
           });
         }
       }
@@ -314,7 +361,15 @@ export default function DailyUpdatesPage() {
     setUpdateToDelete(null);
 
     // 1. INSTANT OPTIMISTIC REMOVAL
-    setUpdates((prev) => prev.filter((u) => String(u._id || u.id) !== targetId));
+    const remaining = updates.filter((u) => String(u._id || u.id) !== targetId);
+    apiItemsRef.current = apiItemsRef.current.filter((u) => String(u._id || u.id) !== targetId);
+    firestoreItemsRef.current = firestoreItemsRef.current.filter((u) => String(u._id || u.id) !== targetId);
+    setUpdates(remaining);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('orbit_cached_daily_updates', JSON.stringify(remaining.slice(0, 100)));
+      } catch (_) {}
+    }
     showToast('Update removed.');
 
     // 2. Background Deletion

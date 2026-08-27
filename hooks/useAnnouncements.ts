@@ -101,13 +101,36 @@ export function useAnnouncements(onNewAnnouncement?: (a: IAnnouncement) => void)
       setAnnouncements(merged);
       setUnreadCount(calculateUnread(merged));
       setLoading(false);
+      if (typeof window !== 'undefined' && merged.length > 0) {
+        try {
+          localStorage.setItem('orbit_cached_announcements', JSON.stringify(merged.slice(0, 100)));
+        } catch (_) {}
+      }
     },
     [calculateUnread]
   );
 
+  // 0. Instant 0ms hydration from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('orbit_cached_announcements');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setAnnouncements(parsed);
+            apiItemsRef.current = parsed;
+            setUnreadCount(calculateUnread(parsed));
+            setLoading(false);
+          }
+        }
+      } catch (_) {}
+    }
+  }, [calculateUnread]);
+
   // 1. Load persisted data from API (MongoDB / fileDb) on mount
   useEffect(() => {
-    fetch('/api/announcements')
+    fetch('/api/announcements', { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : []))
       .then((data: any[]) => {
         if (!Array.isArray(data)) return;
@@ -260,6 +283,24 @@ export function useAnnouncements(onNewAnnouncement?: (a: IAnnouncement) => void)
       isoCreatedAt: nowIso,
     };
 
+    const optimisticId = `temp-${Date.now()}`;
+    const optimisticAnnouncement: IAnnouncement = {
+      _id: optimisticId,
+      id: optimisticId,
+      ...authorPayload,
+      isPending: true,
+    };
+
+    // 0ms immediate UI & Cache update
+    const immediateList = [optimisticAnnouncement, ...announcements.filter((a) => String(a._id || a.id) !== optimisticId)];
+    setAnnouncements(immediateList);
+    apiItemsRef.current = [optimisticAnnouncement, ...apiItemsRef.current.filter((a) => String(a._id || a.id) !== optimisticId)];
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('orbit_cached_announcements', JSON.stringify(immediateList.slice(0, 100)));
+      } catch (_) {}
+    }
+
     try {
       // Write to Firestore (real-time broadcast)
       addDoc(collection(db, 'announcements'), {
@@ -276,12 +317,23 @@ export function useAnnouncements(onNewAnnouncement?: (a: IAnnouncement) => void)
         .then((r) => r.json())
         .then((saved) => {
           if (saved?._id || saved?.id) {
+            const realId = String(saved._id || saved.id);
             const persisted: IAnnouncement = {
-              _id: String(saved._id || saved.id),
-              id: String(saved._id || saved.id),
+              _id: realId,
+              id: realId,
               ...authorPayload,
             };
-            apiItemsRef.current = [persisted, ...apiItemsRef.current];
+            apiItemsRef.current = [persisted, ...apiItemsRef.current.filter((a) => String(a._id || a.id) !== optimisticId && String(a._id || a.id) !== realId)];
+            setAnnouncements((prev) => {
+              const withoutOpt = prev.filter((a) => String(a._id || a.id) !== optimisticId && String(a._id || a.id) !== realId);
+              const nextList = [persisted, ...withoutOpt];
+              if (typeof window !== 'undefined') {
+                try {
+                  localStorage.setItem('orbit_cached_announcements', JSON.stringify(nextList.slice(0, 100)));
+                } catch (_) {}
+              }
+              return nextList;
+            });
           }
         })
         .catch((e) => console.warn('[useAnnouncements] API post:', e));
@@ -293,9 +345,15 @@ export function useAnnouncements(onNewAnnouncement?: (a: IAnnouncement) => void)
   const deleteAnnouncement = async (id: string) => {
     if (!id) return;
     // Optimistic remove from local state
-    setAnnouncements((prev) => prev.filter((a) => String(a._id || a.id) !== id));
+    const remaining = announcements.filter((a) => String(a._id || a.id) !== id);
+    setAnnouncements(remaining);
     firestoreItemsRef.current = firestoreItemsRef.current.filter((a) => String(a._id || a.id) !== id);
     apiItemsRef.current = apiItemsRef.current.filter((a) => String(a._id || a.id) !== id);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('orbit_cached_announcements', JSON.stringify(remaining.slice(0, 100)));
+      } catch (_) {}
+    }
 
     // Delete from Firestore
     deleteDoc(doc(db, 'announcements', id)).catch(console.warn);
