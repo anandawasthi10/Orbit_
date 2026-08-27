@@ -55,32 +55,28 @@ export default function SignupPage() {
       const user = result.user;
       if (!user || !user.email) throw new Error('Could not retrieve user details from Google');
 
-      const signupRes = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: user.displayName || user.email.split('@')[0],
-          email: user.email,
-          password: `google-oauth-${user.uid}`,
-          role: 'Team Member',
-          avatarUrl: user.photoURL || '',
-        }),
-      });
-
+      // Bridge Firebase Google User directly into NextAuth Session
       const authRes = await signIn('credentials', {
         email: user.email,
-        password: `google-oauth-${user.uid}`,
+        isGoogleAuth: 'true',
+        name: user.displayName || user.email.split('@')[0],
+        avatarUrl: user.photoURL || '',
+        password: 'google-authenticated',
         redirect: false,
       });
 
-      if (authRes?.error && !signupRes.ok) throw new Error(authRes.error || 'Failed to sign up with Google');
+      if (authRes?.error) {
+        throw new Error(authRes.error || 'Failed to sign up with Google');
+      }
+
       router.push('/dashboard');
       router.refresh();
     } catch (err: any) {
+      console.error('Google Sign-Up error:', err);
       if (err.code === 'auth/unauthorized-domain' || err.message?.includes('unauthorized-domain')) {
         setError('Please add the domain to Firebase Console → Authentication → Authorized domains.');
-      } else if (auth.currentUser) {
-        router.push('/dashboard');
+      } else if (err.code === 'auth/popup-closed-by-user') {
+        setError('Sign-up popup was closed. Please try again.');
       } else {
         setError(err.message || 'Google sign-up failed. Please try again.');
       }

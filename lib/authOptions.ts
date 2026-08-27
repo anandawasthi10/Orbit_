@@ -11,19 +11,60 @@ export const authOptions: AuthOptions = {
       credentials: {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
+        isGoogleAuth: { label: 'isGoogleAuth', type: 'text' },
+        name: { label: 'Name', type: 'text' },
+        avatarUrl: { label: 'AvatarUrl', type: 'text' },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          throw new Error('Please enter an email and password');
+        if (!credentials?.email) {
+          throw new Error('Please enter an email address');
         }
 
         const inputEmail = credentials.email.toLowerCase().trim();
 
         await connectDB();
 
-        const member = await Member.findOne({
+        let member = await Member.findOne({
           email: inputEmail,
         });
+
+        // 1. Google OAuth Authenticated Flow (Firebase Auth integration)
+        if (credentials.isGoogleAuth === 'true' || (credentials as any).isGoogleAuth === true) {
+          if (!member) {
+            const defaultRole = inputEmail === 'anandawasthi610@gmail.com' ? 'Admin' : 'Team Member';
+            member = await Member.create({
+              name: credentials.name || inputEmail.split('@')[0],
+              email: inputEmail,
+              role: defaultRole,
+              avatarUrl: credentials.avatarUrl || '',
+              profileComplete: true,
+            });
+          } else if (credentials.avatarUrl && !member.avatarUrl) {
+            await Member.findByIdAndUpdate(member._id || member.id, {
+              avatarUrl: credentials.avatarUrl,
+            });
+          }
+
+          const userId = member._id ? member._id.toString() : member.id;
+          let avatarUrl = member.avatarUrl || credentials.avatarUrl || '';
+          if (avatarUrl.startsWith('data:')) {
+            avatarUrl = '';
+          }
+
+          return {
+            id: userId,
+            name: member.name || credentials.name || inputEmail.split('@')[0],
+            email: member.email,
+            role: member.role || (inputEmail === 'anandawasthi610@gmail.com' ? 'Admin' : 'Team Member'),
+            avatarUrl: avatarUrl,
+            profileComplete: member.profileComplete ?? true,
+          };
+        }
+
+        // 2. Standard Email + Password Credentials Flow
+        if (!credentials?.password) {
+          throw new Error('Please enter your password');
+        }
 
         if (!member || !member.password) {
           throw new Error('Invalid email or password');
