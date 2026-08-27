@@ -108,23 +108,40 @@ export const authOptions: AuthOptions = {
         token.email = user.email;
         token.name = user.name;
         token.role = (user as any).role;
-        token.avatarUrl = (user as any).avatarUrl && !(user as any).avatarUrl.startsWith('data:') ? (user as any).avatarUrl : '';
+        token.avatarUrl = (user as any).avatarUrl || '';
         token.profileComplete = (user as any).profileComplete;
       }
+
       if (trigger === 'update' && session) {
         const updatePayload = session.user || session;
         if (updatePayload.name) token.name = updatePayload.name;
         if (updatePayload.role) token.role = updatePayload.role;
         if (updatePayload.avatarUrl !== undefined) {
-          token.avatarUrl =
-            updatePayload.avatarUrl && !updatePayload.avatarUrl.startsWith('data:')
-              ? updatePayload.avatarUrl
-              : '';
+          token.avatarUrl = updatePayload.avatarUrl || '';
         }
         if (updatePayload.profileComplete !== undefined) {
           token.profileComplete = updatePayload.profileComplete;
         }
+
+        // Re-fetch fresh profile from DB after update so JWT is in sync
+        if (token.id) {
+          try {
+            const connectDB = (await import('@/lib/db')).default;
+            const Member = (await import('@/models/Member')).default;
+            await connectDB();
+            const freshMember = await Member.findById(token.id);
+            if (freshMember) {
+              token.name = freshMember.name || token.name;
+              token.role = freshMember.role || token.role;
+              token.avatarUrl = freshMember.avatarUrl || token.avatarUrl;
+              token.profileComplete = freshMember.profileComplete ?? token.profileComplete;
+            }
+          } catch (_) {
+            // Fallback gracefully — keep existing token data
+          }
+        }
       }
+
       return token;
     },
     async session({ session, token }) {

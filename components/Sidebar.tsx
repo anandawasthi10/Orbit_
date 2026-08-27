@@ -59,25 +59,36 @@ export default function Sidebar() {
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
 
   const { unreadCount } = useAnnouncements();
+  const [avatarCacheBust, setAvatarCacheBust] = useState<number>(Date.now());
 
+  // Sync profile info from session + DB fresh on every session user change
   useEffect(() => {
     if (user) {
-      setProfileName(user.name || '');
-      setProfileAvatarUrl(user.avatarUrl || '');
-      setProfileRole(user.role || '');
+      // Apply session data immediately (no loading flicker)
+      if (user.name) setProfileName(user.name);
+      if (user.role) setProfileRole(user.role);
+      // Only set avatar from session if it's a valid URL (not empty, not stale base64 stripped)
+      if (user.avatarUrl) {
+        setProfileAvatarUrl(user.avatarUrl);
+        setAvatarCacheBust(Date.now());
+      }
 
-      fetch('/api/members/me')
+      // Always re-fetch fresh data from DB to pick up latest avatar/name
+      fetch('/api/members/me', { cache: 'no-store' })
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
           if (data) {
             if (data.name) setProfileName(data.name);
-            if (data.avatarUrl) setProfileAvatarUrl(data.avatarUrl);
+            if (data.avatarUrl) {
+              setProfileAvatarUrl(data.avatarUrl);
+              setAvatarCacheBust(Date.now());
+            }
             if (data.role) setProfileRole(data.role);
           }
         })
         .catch(() => {});
     }
-  }, [user]);
+  }, [user?.id, user?.avatarUrl, user?.name, user?.role]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const userRole = profileRole || user?.role || 'Member';
   const userEmail = (user?.email || '').toLowerCase();
@@ -218,7 +229,11 @@ export default function Sidebar() {
               title="Click to edit profile picture & name"
             >
               <div className="relative group">
-                <UserAvatar src={profileAvatarUrl || user.avatarUrl} name={profileName || user.name} />
+                <UserAvatar
+                  src={profileAvatarUrl || user.avatarUrl}
+                  name={profileName || user.name}
+                  key={avatarCacheBust}
+                />
                 <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
                   <Pencil className="w-3 h-3" />
                 </div>
@@ -272,7 +287,10 @@ export default function Sidebar() {
         onClose={() => setIsEditProfileOpen(false)}
         onProfileUpdated={(updated) => {
           if (updated.name) setProfileName(updated.name);
-          if (updated.avatarUrl) setProfileAvatarUrl(updated.avatarUrl);
+          if (updated.avatarUrl) {
+            setProfileAvatarUrl(updated.avatarUrl);
+            setAvatarCacheBust(Date.now()); // Bust cache so <img> reloads
+          }
           if (updated.role) setProfileRole(updated.role);
         }}
       />
