@@ -39,6 +39,10 @@ function MemberAvatar({ src, name }: { src?: string | null; name?: string }) {
   const [imgError, setImgError] = useState(false);
   const initial = name?.charAt(0).toUpperCase() || 'M';
 
+  React.useEffect(() => {
+    setImgError(false);
+  }, [src]);
+
   if (src && !imgError) {
     return (
       <img

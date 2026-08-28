@@ -86,6 +86,11 @@ const COLUMNS = [
 
 function MemberAvatar({ member, size = 'w-6 h-6' }: { member?: any; size?: string }) {
   const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [member?.avatarUrl]);
+
   if (!member) return null;
 
   const initial = member.name?.charAt(0).toUpperCase() || 'M';

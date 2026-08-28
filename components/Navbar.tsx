@@ -15,6 +15,10 @@ function UserAvatar({ src, name, size = 'w-8 h-8' }: UserAvatarProps) {
   const [imgError, setImgError] = useState(false);
   const initial = name?.charAt(0).toUpperCase() || 'U';
 
+  React.useEffect(() => {
+    setImgError(false);
+  }, [src]);
+
   if (src && !imgError) {
     return (
       <img

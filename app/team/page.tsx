@@ -11,6 +11,10 @@ function MemberAvatar({ src, name, size = 'w-12 h-12' }: { src?: string | null; 
   const [imgError, setImgError] = useState(false);
   const initial = name?.charAt(0).toUpperCase() || 'M';
 
+  useEffect(() => {
+    setImgError(false);
+  }, [src]);
+
   if (src && !imgError) {
     return (
       <img
