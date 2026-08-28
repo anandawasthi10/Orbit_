@@ -240,15 +240,15 @@ function SortableTaskCard({
           {statusStyle.label}
         </span>
 
-        {/* Member Submit Action */}
-        {(task.status === 'todo' || task.status === 'in_progress' || task.status === 'pending' || task.status === 'rejected') && (isAssignedToMe || canAssignTask) && (
+        {/* Member Submit Action: Shown ONLY in Member Panel (Never for Admins) */}
+        {!canAssignTask && (task.status === 'todo' || task.status === 'in_progress' || task.status === 'pending' || task.status === 'rejected') && (isAssignedToMe || !assignedToMember) && (
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
               onSubmitTaskClick(task);
             }}
-            className="text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded-lg shadow-xs hover:shadow transition-all flex items-center gap-1.5"
+            className="text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded-lg shadow-xs hover:shadow transition-all flex items-center gap-1.5 cursor-pointer"
           >
             <Send className="w-3 h-3" />
             {task.status === 'rejected' ? 'Resubmit Task' : 'Submit Task'}
