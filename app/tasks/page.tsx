@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import {
   DndContext,
@@ -19,6 +19,16 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useSearchParams } from 'next/navigation';
+import {
+  collection,
+  onSnapshot,
+  doc,
+  setDoc,
+  deleteDoc,
+  serverTimestamp,
+  writeBatch,
+} from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import {
   Plus,
   Trash2,
@@ -394,21 +404,77 @@ function TasksContent() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  const apiTasksRef = useRef<any[]>([]);
+  const firestoreTasksRef = useRef<any[]>([]);
+
+  // Merge and deduplicate tasks from API and Firestore
+  const mergeTasks = (apiList: any[], firestoreList: any[]) => {
+    const taskMap = new Map<string, any>();
+
+    // 1. Add API tasks
+    for (const t of apiList) {
+      const id = String(t._id || t.id || '');
+      if (id) taskMap.set(id, t);
+    }
+
+    // 2. Add/override with Firestore cloud tasks
+    for (const t of firestoreList) {
+      const id = String(t._id || t.id || '');
+      if (!id) continue;
+      const existing = taskMap.get(id);
+      if (existing) {
+        taskMap.set(id, { ...existing, ...t });
+      } else {
+        taskMap.set(id, t);
+      }
+    }
+
+    const merged = Array.from(taskMap.values());
+    // Cache locally for 0ms instant display on page reload/navigation
+    if (typeof window !== 'undefined' && merged.length > 0) {
+      try {
+        localStorage.setItem('orbit_cached_tasks', JSON.stringify(merged));
+      } catch (_) {}
+    }
+    return merged;
+  };
+
+  // 1. Instant 0ms hydration from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('orbit_cached_tasks');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setTasks(parsed);
+            apiTasksRef.current = parsed;
+            setLoading(false);
+          }
+        }
+      } catch (_) {}
+    }
+  }, []);
+
+  // 2. Fetch Members & API Tasks
   const fetchData = async () => {
     try {
-      setLoading(true);
       const [tasksRes, membersRes] = await Promise.all([
-        fetch('/api/tasks'),
-        fetch('/api/members'),
+        fetch('/api/tasks', { cache: 'no-store' }),
+        fetch('/api/members', { cache: 'no-store' }),
       ]);
 
-      if (tasksRes.ok) {
-        const tasksData = await tasksRes.json();
-        setTasks(tasksData);
-      }
       if (membersRes.ok) {
         const membersData = await membersRes.json();
         setMembers(membersData);
+      }
+
+      if (tasksRes.ok) {
+        const tasksData = await tasksRes.json();
+        if (Array.isArray(tasksData)) {
+          apiTasksRef.current = tasksData;
+          setTasks(mergeTasks(apiTasksRef.current, firestoreTasksRef.current));
+        }
       }
     } catch (err) {
       console.error('Error loading task manager:', err);
@@ -419,6 +485,32 @@ function TasksContent() {
 
   useEffect(() => {
     fetchData();
+  }, []);
+
+  // 3. Real-time Firebase Firestore synchronization listener
+  useEffect(() => {
+    const unsub = onSnapshot(
+      collection(db, 'tasks'),
+      (snapshot) => {
+        const cloudTasks: any[] = [];
+        snapshot.forEach((docSnap) => {
+          cloudTasks.push({
+            _id: docSnap.id,
+            id: docSnap.id,
+            ...docSnap.data(),
+          });
+        });
+
+        firestoreTasksRef.current = cloudTasks;
+        setTasks(mergeTasks(apiTasksRef.current, firestoreTasksRef.current));
+        setLoading(false);
+      },
+      (error) => {
+        console.warn('Firestore tasks subscription error, falling back to API:', error);
+      }
+    );
+
+    return () => unsub();
   }, []);
 
   // Handle deep-linked task from notification click
@@ -445,41 +537,79 @@ function TasksContent() {
     return true;
   });
 
-  // Assign Task Submit Handler (Admin)
+  // Assign Task Submit Handler (Admin) — Writes to Firestore Cloud + API
   const handleAssignTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!assignForm.title.trim()) return;
 
+    const taskId = `task-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const assignedMember = members.find(
+      (m) => (m._id || m.id) === assignForm.assignedTo
+    ) || (assignForm.assignedTo ? { name: 'Assigned Member', _id: assignForm.assignedTo } : null);
+
+    const taskPayload = {
+      _id: taskId,
+      id: taskId,
+      title: assignForm.title.trim(),
+      description: assignForm.description.trim(),
+      category: assignForm.category,
+      assignedTo: assignedMember,
+      assignedBy: sessionUser ? { name: sessionUser.name, id: currentUserId } : null,
+      priority: assignForm.priority,
+      deadline: assignForm.deadline || null,
+      status: 'todo',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    // 1. Optimistically update local state & Firestore cloud immediately
+    firestoreTasksRef.current = [taskPayload, ...firestoreTasksRef.current];
+    setTasks(mergeTasks(apiTasksRef.current, firestoreTasksRef.current));
+    setShowAssignModal(false);
+    setAssignForm({
+      title: '',
+      description: '',
+      category: 'Frontend',
+      assignedTo: '',
+      priority: 'medium',
+      deadline: '',
+    });
+    showToast('Task assigned and saved permanently!');
+
     try {
-      const res = await fetch('/api/tasks', {
+      // 2. Persist in Firebase Firestore
+      await setDoc(doc(db, 'tasks', taskId), taskPayload, { merge: true });
+
+      // 3. Create Notification in Firestore
+      if (assignedMember) {
+        await setDoc(doc(collection(db, 'notifications')), {
+          type: 'task_assigned',
+          taskId,
+          taskTitle: taskPayload.title,
+          recipientId: (assignedMember as any)._id || (assignedMember as any).id,
+          recipientName: (assignedMember as any).name,
+          assignedBy: sessionUser?.name || 'Admin',
+          createdAt: serverTimestamp(),
+          read: false,
+        });
+      }
+
+      // 4. Also call API route in background
+      await fetch('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: assignForm.title.trim(),
-          description: assignForm.description.trim(),
-          category: assignForm.category,
+          title: taskPayload.title,
+          description: taskPayload.description,
+          category: taskPayload.category,
           assignedTo: assignForm.assignedTo || null,
-          priority: assignForm.priority,
-          deadline: assignForm.deadline || null,
+          priority: taskPayload.priority,
+          deadline: taskPayload.deadline,
           status: 'todo',
         }),
       });
-
-      if (res.ok) {
-        setShowAssignModal(false);
-        setAssignForm({
-          title: '',
-          description: '',
-          category: 'Frontend',
-          assignedTo: '',
-          priority: 'medium',
-          deadline: '',
-        });
-        showToast('Task assigned successfully!');
-        fetchData();
-      }
     } catch (err) {
-      console.error('Assign task error:', err);
+      console.error('Assign task persistence error:', err);
     }
   };
 
@@ -524,22 +654,35 @@ function TasksContent() {
   };
 
   const handleUpdateSubmissionStatus = async (status: 'approved' | 'rejected') => {
-    if (!reviewingTask || !reviewSubmission) return;
+    if (!reviewingTask) return;
 
     setIsReviewing(true);
-    try {
-      const subId = reviewSubmission._id || reviewSubmission.id;
-      const res = await fetch(`/api/submissions/${subId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      });
+    const taskId = reviewingTask._id || reviewingTask.id;
+    const updateData = {
+      status,
+      updatedAt: new Date().toISOString(),
+    };
 
-      if (res.ok) {
-        setReviewingTask(null);
-        setReviewSubmission(null);
-        showToast(`Task submission marked as ${status.toUpperCase()}!`);
-        fetchData();
+    // 1. Optimistic update
+    setTasks((prev) =>
+      prev.map((t) => ((t._id || t.id) === taskId ? { ...t, status } : t))
+    );
+    setReviewingTask(null);
+    setReviewSubmission(null);
+    showToast(`Task submission marked as ${status.toUpperCase()}!`);
+
+    try {
+      // 2. Persist to Firestore
+      await setDoc(doc(db, 'tasks', taskId), updateData, { merge: true });
+
+      // 3. Update submission if exists
+      if (reviewSubmission) {
+        const subId = reviewSubmission._id || reviewSubmission.id;
+        await fetch(`/api/submissions/${subId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status }),
+        });
       }
     } catch (err) {
       console.error('Update submission error:', err);
@@ -549,30 +692,35 @@ function TasksContent() {
   };
 
   const handleDeleteTask = async (id: string) => {
+    // 1. Optimistic delete
+    setTasks((prev) => prev.filter((t) => (t._id || t.id) !== id));
+    showToast('Task deleted');
+
     try {
-      const res = await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        showToast('Task deleted');
-        setTasks((prev) => prev.filter((t) => (t._id || t.id) !== id));
-      }
+      // 2. Delete from Firestore
+      await deleteDoc(doc(db, 'tasks', id));
+      // 3. Delete from API
+      await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
     } catch (err) {
-      console.error('Delete error:', err);
+      console.error('Delete task error:', err);
     }
   };
 
   const handleUpdateTaskStatus = async (id: string, newStatus: string) => {
+    // 1. Optimistic status update
+    setTasks((prev) =>
+      prev.map((t) => ((t._id || t.id) === id ? { ...t, status: newStatus } : t))
+    );
+
     try {
-      const res = await fetch(`/api/tasks/${id}`, {
+      // 2. Persist to Firestore
+      await setDoc(doc(db, 'tasks', id), { status: newStatus, updatedAt: new Date().toISOString() }, { merge: true });
+      // 3. Update in API
+      await fetch(`/api/tasks/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       });
-
-      if (res.ok) {
-        setTasks((prev) =>
-          prev.map((t) => ((t._id || t.id) === id ? { ...t, status: newStatus } : t))
-        );
-      }
     } catch (err) {
       console.error('Update status error:', err);
     }
@@ -580,34 +728,45 @@ function TasksContent() {
 
   const handleAssignToMe = async (id: string) => {
     if (!currentUserId) return;
+    const currentMember = members.find((m) => (m._id || m.id) === currentUserId) || {
+      _id: currentUserId,
+      id: currentUserId,
+      name: sessionUser?.name || 'Me',
+      avatarUrl: (sessionUser as any)?.avatarUrl,
+    };
+
+    // 1. Optimistic assign
+    setTasks((prev) =>
+      prev.map((t) => ((t._id || t.id) === id ? { ...t, assignedTo: currentMember } : t))
+    );
+    showToast('Task assigned to you');
+
     try {
-      const res = await fetch(`/api/tasks/${id}`, {
+      // 2. Persist to Firestore
+      await setDoc(doc(db, 'tasks', id), { assignedTo: currentMember, updatedAt: new Date().toISOString() }, { merge: true });
+      // 3. Update in API
+      await fetch(`/api/tasks/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ assignedTo: currentUserId }),
       });
-
-      if (res.ok) {
-        showToast('Task assigned to you');
-        fetchData();
-      }
     } catch (err) {
       console.error('Assign error:', err);
     }
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over) return;
+    const activeTaskId = String(active.id);
+    const overColumnId = String(over.id);
 
-    const activeId = String(active.id);
-    const overId = String(over.id);
+    const targetStatus = overColumnId === 'completed' ? 'completed' : overColumnId === 'submitted' ? 'submitted' : overColumnId === 'rejected' ? 'rejected' : 'todo';
 
-    const targetColumn = COLUMNS.find((c) => c.id === overId);
+    const currentTask = tasks.find((t) => (t._id || t.id) === activeTaskId);
+    if (!currentTask || currentTask.status === targetStatus) return;
 
-    if (targetColumn) {
-      handleUpdateTaskStatus(activeId, targetColumn.id);
-    }
+    handleUpdateTaskStatus(activeTaskId, targetStatus);
   };
 
   return (
