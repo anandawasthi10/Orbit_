@@ -94,7 +94,8 @@ export default function HomePage() {
 
       gsap.set(redPinRef.current, {
         scale: 0,
-        y: -15,
+        opacity: 0,
+        y: -35,
       });
 
       // 2. FIRST: Reminder card list attaches and settles into place
@@ -114,31 +115,34 @@ export default function HomePage() {
         ease: 'back.out(2.5)',
       }, '-=0.35')
 
-      // 3. THEN: Yellow sticky note flies in and sticks with a pin pop
+      // 3. THEN: Yellow sticky note flies in and lands on site FIRST
       .to(yellowNoteWrapRef.current, {
         opacity: 1,
         x: 0,
         y: 0,
         rotation: 0,
         scale: 1,
-        duration: 0.8,
-        ease: 'elastic.out(1, 0.55)',
-      }, '-=0.2')
+        duration: 0.75,
+        ease: 'back.out(1.4)',
+      }, '-=0.15')
+
+      // 4. AFTER yellow page is placed: Red pin drops down and pins into the note!
       .to(redPinRef.current, {
         scale: 1,
+        opacity: 1,
         y: 0,
-        duration: 0.35,
-        ease: 'back.out(3.5)',
-      }, '-=0.35')
+        duration: 0.4,
+        ease: 'bounce.out',
+      }, '+=0.06')
 
-      // 4. ORBIT enlarged heading pops in with prominence
+      // 5. ORBIT enlarged heading pops in with prominence
       .to(orbitTitleRef.current, {
         opacity: 1,
         y: 0,
         scale: 1,
         duration: 0.65,
         ease: 'back.out(2)',
-      }, '-=0.45')
+      }, '-=0.3')
 
       // 5. Headline, Planet Logo, Subtext & CTA Button reveal
       .to(headlineRef.current, {
