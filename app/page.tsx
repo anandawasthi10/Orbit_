@@ -1,18 +1,17 @@
-'use client';
-
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { gsap } from 'gsap';
 import {
-  Activity,
-  GitBranch,
   CheckCircle2,
   Users,
-  Zap,
-  Radio,
-  Cpu,
-  Layers,
-  Terminal,
+  FolderKanban,
+  MessageSquare,
+  Sparkles,
+  Rocket,
+  Target,
+  CheckSquare,
+  Calendar,
+  Megaphone,
 } from 'lucide-react';
 import FluidGradientBg from '@/components/FluidGradientBg';
 import MinecraftCodeModal from '@/components/MinecraftCodeModal';
@@ -33,13 +32,19 @@ export default function HomePage() {
   const planetRef = useRef<HTMLDivElement>(null);
   const orbitalRingRef = useRef<HTMLDivElement>(null);
   const subtextRef = useRef<HTMLParagraphElement>(null);
-  const btnRef = useRef<HTMLAnchorElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
 
-  // Technical HUD ref elements
-  const techBadge1Ref = useRef<HTMLDivElement>(null);
-  const techBadge2Ref = useRef<HTMLDivElement>(null);
-  const techBadge3Ref = useRef<HTMLDivElement>(null);
-  const techBadge4Ref = useRef<HTMLDivElement>(null);
+  // App Feature Badges ref elements
+  const appBadge1Ref = useRef<HTMLDivElement>(null);
+  const appBadge2Ref = useRef<HTMLDivElement>(null);
+  const appBadge3Ref = useRef<HTMLDivElement>(null);
+  const appBadge4Ref = useRef<HTMLDivElement>(null);
+
+  // Floating Mini Stickers
+  const sticker1Ref = useRef<HTMLDivElement>(null);
+  const sticker2Ref = useRef<HTMLDivElement>(null);
+  const sticker3Ref = useRef<HTMLDivElement>(null);
+  const sticker4Ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!stageRef.current) return;
@@ -54,10 +59,14 @@ export default function HomePage() {
         planetRef.current,
         subtextRef.current,
         btnRef.current,
-        techBadge1Ref.current,
-        techBadge2Ref.current,
-        techBadge3Ref.current,
-        techBadge4Ref.current,
+        appBadge1Ref.current,
+        appBadge2Ref.current,
+        appBadge3Ref.current,
+        appBadge4Ref.current,
+        sticker1Ref.current,
+        sticker2Ref.current,
+        sticker3Ref.current,
+        sticker4Ref.current,
       ], { opacity: 0, y: 20 });
 
       gsap.set(reminderWrapRef.current, {
@@ -155,13 +164,22 @@ export default function HomePage() {
         ease: 'back.out(1.8)',
       }, '-=0.2')
 
-      // 6. Reveal Technical Teamwork Badges with staggered pop
-      .to([techBadge1Ref.current, techBadge2Ref.current, techBadge3Ref.current, techBadge4Ref.current], {
+      // 6. Reveal App Feature Badges with staggered pop
+      .to([appBadge1Ref.current, appBadge2Ref.current, appBadge3Ref.current, appBadge4Ref.current], {
         opacity: 1,
         y: 0,
         duration: 0.5,
         stagger: 0.1,
         ease: 'back.out(1.6)',
+      }, '-=0.3')
+
+      // 7. Floating mini stickers pop in
+      .to([sticker1Ref.current, sticker2Ref.current, sticker3Ref.current, sticker4Ref.current], {
+        opacity: 1,
+        y: 0,
+        duration: 0.4,
+        stagger: 0.08,
+        ease: 'back.out(2.2)',
       }, '-=0.3');
 
       // Continuous Orbital Ring Rotation
@@ -174,15 +192,15 @@ export default function HomePage() {
         });
       }
 
-      // Continuous subtle floating animations for technical badges
-      gsap.to(techBadge1Ref.current, {
+      // Continuous subtle floating animations for app badges
+      gsap.to(appBadge1Ref.current, {
         y: -6,
         duration: 3.2,
         repeat: -1,
         yoyo: true,
         ease: 'sine.inOut',
       });
-      gsap.to(techBadge2Ref.current, {
+      gsap.to(appBadge2Ref.current, {
         y: 6,
         duration: 3.8,
         repeat: -1,
@@ -190,7 +208,7 @@ export default function HomePage() {
         ease: 'sine.inOut',
         delay: 0.5,
       });
-      gsap.to(techBadge3Ref.current, {
+      gsap.to(appBadge3Ref.current, {
         y: -5,
         duration: 4.1,
         repeat: -1,
@@ -198,7 +216,7 @@ export default function HomePage() {
         ease: 'sine.inOut',
         delay: 1,
       });
-      gsap.to(techBadge4Ref.current, {
+      gsap.to(appBadge4Ref.current, {
         y: 5,
         duration: 3.5,
         repeat: -1,
@@ -206,6 +224,12 @@ export default function HomePage() {
         ease: 'sine.inOut',
         delay: 0.8,
       });
+
+      // Subtle float for mini stickers
+      gsap.to(sticker1Ref.current, { y: -4, rotation: 8, duration: 2.6, repeat: -1, yoyo: true, ease: 'sine.inOut' });
+      gsap.to(sticker2Ref.current, { y: 5, rotation: -6, duration: 3.1, repeat: -1, yoyo: true, ease: 'sine.inOut', delay: 0.3 });
+      gsap.to(sticker3Ref.current, { y: -5, rotation: 10, duration: 2.8, repeat: -1, yoyo: true, ease: 'sine.inOut', delay: 0.6 });
+      gsap.to(sticker4Ref.current, { y: 4, rotation: -8, duration: 3.4, repeat: -1, yoyo: true, ease: 'sine.inOut', delay: 0.9 });
 
     }, stageRef);
 
@@ -230,7 +254,7 @@ export default function HomePage() {
           position: relative;
         }
 
-        /* ── Hero stage (fixed 780 × 420, CSS-scaled) ── */
+        /* ── Hero stage (780 × 460, CSS-scaled) ── */
         .lp-stage-wrap {
           flex: 1;
           width: 100%;
@@ -238,36 +262,36 @@ export default function HomePage() {
           align-items: center;
           justify-content: center;
           overflow: hidden;
-          min-height: 540px;
+          min-height: 580px;
         }
         .lp-stage {
           position: relative;
           width: 780px;
-          height: 420px;
+          height: 460px;
           background: transparent;
           flex-shrink: 0;
           overflow: visible;
-          /* Scale up 1.30× on large screens so content fills viewport */
-          transform: scale(1.30);
+          /* Scale up 1.25× on large screens so content fills viewport */
+          transform: scale(1.25);
           transform-origin: center center;
         }
 
         /* Responsive scale-down */
         @media (max-width: 1080px) {
-          .lp-stage { transform: scale(1.12); }
-          .lp-stage-wrap { min-height: 460px; }
+          .lp-stage { transform: scale(1.08); }
+          .lp-stage-wrap { min-height: 500px; }
         }
         @media (max-width: 880px) {
-          .lp-stage { transform: scale(0.92); }
-          .lp-stage-wrap { min-height: 380px; }
+          .lp-stage { transform: scale(0.90); }
+          .lp-stage-wrap { min-height: 420px; }
         }
         @media (max-width: 680px) {
-          .lp-stage { transform: scale(0.72); }
-          .lp-stage-wrap { min-height: 290px; }
+          .lp-stage { transform: scale(0.70); }
+          .lp-stage-wrap { min-height: 330px; }
         }
         @media (max-width: 500px) {
-          .lp-stage { transform: scale(0.52); }
-          .lp-stage-wrap { min-height: 210px; }
+          .lp-stage { transform: scale(0.50); }
+          .lp-stage-wrap { min-height: 240px; }
         }
 
         /* Floating idle animations */
@@ -282,35 +306,38 @@ export default function HomePage() {
         .lp-float-note { animation: lp-float-note 5s ease-in-out infinite; }
         .lp-float-card { animation: lp-float-card 4.5s ease-in-out infinite; }
 
-        /* Technical pulse effects */
-        @keyframes radar-pulse {
-          0% { transform: scale(0.95); opacity: 0.8; }
-          50% { transform: scale(1.4); opacity: 0; }
-          100% { transform: scale(0.95); opacity: 0; }
-        }
-        .radar-ring {
-          animation: radar-pulse 2.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
-        }
-
-        /* Technical HUD Badge styling */
-        .tech-hud-badge {
-          background: rgba(255, 255, 255, 0.85);
-          backdrop-filter: blur(12px);
-          border: 1px solid rgba(226, 232, 240, 0.9);
+        /* App Feature Badge styling */
+        .app-feature-badge {
+          background: rgba(255, 255, 255, 0.92);
+          backdrop-filter: blur(14px);
+          border: 1px solid rgba(226, 232, 240, 0.95);
           box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 4px 6px -2px rgba(15, 23, 42, 0.04);
           transition: all 0.25s ease;
         }
-        .tech-hud-badge:hover {
-          transform: translateY(-2px) scale(1.03);
-          border-color: rgba(59, 130, 246, 0.4);
-          box-shadow: 0 14px 30px -4px rgba(59, 130, 246, 0.16);
+        .app-feature-badge:hover {
+          transform: translateY(-3px) scale(1.04);
+          border-color: rgba(59, 130, 246, 0.45);
+          box-shadow: 0 14px 30px -4px rgba(59, 130, 246, 0.2);
+        }
+
+        /* Mini Floating Sticker styling */
+        .mini-sticker {
+          position: absolute;
+          z-index: 14;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+          border: 2px solid #ffffff;
+          border-radius: 9999px;
+          pointer-events: none;
         }
 
         /* GET STARTED hover */
         .lp-btn:hover {
           filter: brightness(1.08);
           transform: translateX(-50%) translateY(-2px) !important;
-          box-shadow: 0 8px 22px rgba(0, 162, 255, 0.5) !important;
+          box-shadow: 0 10px 24px rgba(0, 162, 255, 0.55) !important;
         }
         .lp-btn:active {
           transform: translateX(-50%) translateY(0px) !important;
@@ -323,92 +350,32 @@ export default function HomePage() {
         <FluidGradientBg />
 
         {/* ════════════════════════════════════
-            HERO STAGE  780 × 420
+            HERO STAGE  780 × 460
         ════════════════════════════════════ */}
         <div className="lp-stage-wrap">
           <div ref={stageRef} className="lp-stage">
 
-            {/* ── TECHNICAL TEAMWORK HUD: Top-Left (Live Sync & Active Devs) ── */}
+            {/* ── APP BADGE 1: Top-Left (Team Workspace) ── */}
             <div
-              ref={techBadge1Ref}
-              className="tech-hud-badge"
+              ref={appBadge1Ref}
+              className="app-feature-badge"
               style={{
                 position: 'absolute',
                 left: 10,
                 top: 8,
                 zIndex: 12,
-                borderRadius: 10,
-                padding: '6px 10px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-              }}
-            >
-              <div style={{ position: 'relative', width: 8, height: 8 }}>
-                <span
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    borderRadius: '50%',
-                    background: '#10b981',
-                  }}
-                />
-                <span
-                  className="radar-ring"
-                  style={{
-                    position: 'absolute',
-                    inset: -3,
-                    borderRadius: '50%',
-                    background: '#10b981',
-                  }}
-                />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span
-                  style={{
-                    fontFamily: "'Plus Jakarta Sans', sans-serif",
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: '#0f172a',
-                    lineHeight: 1.1,
-                  }}
-                >
-                  6 Devs Collaborating
-                </span>
-                <span
-                  style={{
-                    fontFamily: "'Fira Code', monospace",
-                    fontSize: 8.5,
-                    color: '#10b981',
-                    fontWeight: 600,
-                  }}
-                >
-                  ● Live Sync Active
-                </span>
-              </div>
-            </div>
-
-            {/* ── TECHNICAL TEAMWORK HUD: Bottom-Left (Git & Pipeline Engine) ── */}
-            <div
-              ref={techBadge2Ref}
-              className="tech-hud-badge"
-              style={{
-                position: 'absolute',
-                left: 14,
-                bottom: 22,
-                zIndex: 12,
-                borderRadius: 10,
+                borderRadius: 12,
                 padding: '7px 11px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: 8,
+                gap: 9,
               }}
             >
               <div
                 style={{
-                  width: 22,
-                  height: 22,
-                  borderRadius: 6,
+                  width: 26,
+                  height: 26,
+                  borderRadius: 8,
                   background: '#eff6ff',
                   display: 'flex',
                   alignItems: 'center',
@@ -416,120 +383,123 @@ export default function HomePage() {
                   color: '#2563eb',
                 }}
               >
-                <GitBranch size={13} />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span
-                    style={{
-                      fontFamily: "'Fira Code', monospace",
-                      fontSize: 9.5,
-                      fontWeight: 600,
-                      color: '#1e293b',
-                    }}
-                  >
-                    branch: main
-                  </span>
-                  <span
-                    style={{
-                      background: '#dcfce7',
-                      color: '#15803d',
-                      fontSize: 7.5,
-                      fontWeight: 700,
-                      padding: '1px 4px',
-                      borderRadius: 4,
-                    }}
-                  >
-                    CI/CD PASS
-                  </span>
-                </div>
-                <span
-                  style={{
-                    fontFamily: "'Plus Jakarta Sans', sans-serif",
-                    fontSize: 8.5,
-                    color: '#64748b',
-                  }}
-                >
-                  24 commits merged today
-                </span>
-              </div>
-            </div>
-
-            {/* ── TECHNICAL TEAMWORK HUD: Top-Right (Sprint Velocity) ── */}
-            <div
-              ref={techBadge3Ref}
-              className="tech-hud-badge"
-              style={{
-                position: 'absolute',
-                right: 18,
-                top: 14,
-                zIndex: 12,
-                borderRadius: 10,
-                padding: '6px 11px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-              }}
-            >
-              <div
-                style={{
-                  width: 22,
-                  height: 22,
-                  borderRadius: 6,
-                  background: '#fef2f2',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#ef4444',
-                }}
-              >
-                <Activity size={13} />
+                <Users size={15} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 <span
                   style={{
                     fontFamily: "'Plus Jakarta Sans', sans-serif",
-                    fontSize: 9.5,
+                    fontSize: 10.5,
                     fontWeight: 700,
                     color: '#0f172a',
                     lineHeight: 1.1,
                   }}
                 >
-                  Sprint Velocity 98.4%
+                  Team Workspace
                 </span>
                 <span
                   style={{
-                    fontFamily: "'Fira Code', monospace",
-                    fontSize: 8,
-                    color: '#64748b',
+                    fontFamily: "'Plus Jakarta Sans', sans-serif",
+                    fontSize: 9,
+                    color: '#10b981',
+                    fontWeight: 700,
                   }}
                 >
-                  ⚡ Real-time Kanban
+                  ● Active Collaboration
                 </span>
               </div>
             </div>
 
-            {/* ── TECHNICAL TEAMWORK HUD: Bottom-Right (RTDB Latency) ── */}
+            {/* ── APP BADGE 2: Bottom-Left (Project Milestone) ── */}
             <div
-              ref={techBadge4Ref}
-              className="tech-hud-badge"
+              ref={appBadge2Ref}
+              className="app-feature-badge"
               style={{
                 position: 'absolute',
-                right: 16,
+                left: 14,
                 bottom: 24,
                 zIndex: 12,
-                borderRadius: 10,
-                padding: '7px 11px',
+                borderRadius: 12,
+                padding: '7px 12px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: 8,
+                gap: 9,
               }}
             >
               <div
                 style={{
-                  width: 22,
-                  height: 22,
-                  borderRadius: 6,
+                  width: 26,
+                  height: 26,
+                  borderRadius: 8,
+                  background: '#fdf4ff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#c026d3',
+                }}
+              >
+                <FolderKanban size={15} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <span
+                    style={{
+                      fontFamily: "'Plus Jakarta Sans', sans-serif",
+                      fontSize: 10,
+                      fontWeight: 700,
+                      color: '#1e293b',
+                    }}
+                  >
+                    Projects & Kanban
+                  </span>
+                  <span
+                    style={{
+                      background: '#fdf4ff',
+                      color: '#c026d3',
+                      border: '1px solid #f5d0fe',
+                      fontSize: 8,
+                      fontWeight: 700,
+                      padding: '1px 5px',
+                      borderRadius: 5,
+                    }}
+                  >
+                    Sprint
+                  </span>
+                </div>
+                <span
+                  style={{
+                    fontFamily: "'Plus Jakarta Sans', sans-serif",
+                    fontSize: 9,
+                    color: '#64748b',
+                    fontWeight: 600,
+                  }}
+                >
+                  Track Tasks & Deadlines 🚀
+                </span>
+              </div>
+            </div>
+
+            {/* ── APP BADGE 3: Top-Right (Task Manager Tracker) ── */}
+            <div
+              ref={appBadge3Ref}
+              className="app-feature-badge"
+              style={{
+                position: 'absolute',
+                right: 18,
+                top: 14,
+                zIndex: 12,
+                borderRadius: 12,
+                padding: '7px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 9,
+              }}
+            >
+              <div
+                style={{
+                  width: 26,
+                  height: 26,
+                  borderRadius: 8,
                   background: '#f0fdf4',
                   display: 'flex',
                   alignItems: 'center',
@@ -537,31 +507,147 @@ export default function HomePage() {
                   color: '#16a34a',
                 }}
               >
-                <Zap size={13} />
+                <CheckCircle2 size={15} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 <span
                   style={{
                     fontFamily: "'Plus Jakarta Sans', sans-serif",
-                    fontSize: 9.5,
+                    fontSize: 10.5,
                     fontWeight: 700,
                     color: '#0f172a',
                     lineHeight: 1.1,
                   }}
                 >
-                  Firestore RTDB
+                  Task Manager
                 </span>
                 <span
                   style={{
-                    fontFamily: "'Fira Code', monospace",
-                    fontSize: 8.5,
+                    fontFamily: "'Plus Jakarta Sans', sans-serif",
+                    fontSize: 9,
                     color: '#16a34a',
-                    fontWeight: 600,
+                    fontWeight: 700,
                   }}
                 >
-                  12ms live latency
+                  ⚡ All Tasks On Schedule
                 </span>
               </div>
+            </div>
+
+            {/* ── APP BADGE 4: Bottom-Right (Daily Updates & Standups) ── */}
+            <div
+              ref={appBadge4Ref}
+              className="app-feature-badge"
+              style={{
+                position: 'absolute',
+                right: 16,
+                bottom: 26,
+                zIndex: 12,
+                borderRadius: 12,
+                padding: '7px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 9,
+              }}
+            >
+              <div
+                style={{
+                  width: 26,
+                  height: 26,
+                  borderRadius: 8,
+                  background: '#fffbeb',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#d97706',
+                }}
+              >
+                <MessageSquare size={15} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span
+                  style={{
+                    fontFamily: "'Plus Jakarta Sans', sans-serif",
+                    fontSize: 10.5,
+                    fontWeight: 700,
+                    color: '#0f172a',
+                    lineHeight: 1.1,
+                  }}
+                >
+                  Daily Standups
+                </span>
+                <span
+                  style={{
+                    fontFamily: "'Plus Jakarta Sans', sans-serif",
+                    fontSize: 9,
+                    color: '#d97706',
+                    fontWeight: 700,
+                  }}
+                >
+                  📢 Instant Team Updates
+                </span>
+              </div>
+            </div>
+
+            {/* ── Mini Floating Stickers & App Icons ── */}
+            <div
+              ref={sticker1Ref}
+              className="mini-sticker"
+              style={{
+                left: 176,
+                top: 42,
+                width: 32,
+                height: 32,
+                background: 'linear-gradient(135deg, #fef08a, #facc15)',
+                color: '#854d0e',
+              }}
+            >
+              <Sparkles size={16} />
+            </div>
+
+            <div
+              ref={sticker2Ref}
+              className="mini-sticker"
+              style={{
+                right: 182,
+                top: 56,
+                width: 30,
+                height: 30,
+                background: 'linear-gradient(135deg, #fed7aa, #fb923c)',
+                color: '#9a3412',
+              }}
+            >
+              <Target size={15} />
+            </div>
+
+            <div
+              ref={sticker3Ref}
+              className="mini-sticker"
+              style={{
+                left: 198,
+                bottom: 50,
+                width: 30,
+                height: 30,
+                background: 'linear-gradient(135deg, #bfdbfe, #60a5fa)',
+                color: '#1e40af',
+              }}
+            >
+              <Rocket size={15} />
+            </div>
+
+            <div
+              ref={sticker4Ref}
+              className="mini-sticker"
+              style={{
+                right: 192,
+                bottom: 48,
+                width: 30,
+                height: 30,
+                background: 'linear-gradient(135deg, #bbf7d0, #4ade80)',
+                color: '#166534',
+              }}
+            >
+              <CheckSquare size={15} />
             </div>
 
             {/* ── Yellow Sticky Note (Centered Text & Proper Proportions) ── */}
@@ -683,7 +769,7 @@ export default function HomePage() {
               style={{
                 position: 'absolute',
                 left: '50%',
-                top: 144,
+                top: 140,
                 transform: 'translateX(-50%)',
                 width: 106,
                 height: 96,
@@ -728,19 +814,19 @@ export default function HomePage() {
               />
             </div>
 
-            {/* ── Subtext Description ─────────────────────────── */}
+            {/* ── Subtext Description (Moved lower with clean spacing) ─────────────────────────── */}
             <p
               ref={subtextRef}
               style={{
                 position: 'absolute',
                 left: '50%',
-                top: 246,
+                top: 272,
                 transform: 'translateX(-50%)',
-                width: 360,
+                width: 380,
                 margin: 0,
                 fontFamily: "'Sour Gummy', system-ui, sans-serif",
                 fontWeight: 400,
-                fontSize: 14,
+                fontSize: 14.5,
                 lineHeight: 1.5,
                 color: '#0c0c0c',
                 fontVariationSettings: '"wdth" 100',
@@ -752,7 +838,7 @@ export default function HomePage() {
               seamlessly all in one powerful workspace
             </p>
 
-            {/* ── GET STARTED Button ──────── */}
+            {/* ── GET STARTED Button (Positioned gracefully at the bottom) ──────── */}
             <button
               ref={btnRef as any}
               type="button"
@@ -761,30 +847,29 @@ export default function HomePage() {
               style={{
                 position: 'absolute',
                 left: '50%',
-                top: 310,
+                top: 356,
                 transform: 'translateX(-50%)',
-                width: 164,
-                height: 36,
+                width: 174,
+                height: 40,
                 background: '#00a2ff',
-                borderRadius: 6,
+                borderRadius: 8,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 textDecoration: 'none',
                 fontFamily: "'Sour Gummy', system-ui, sans-serif",
-                fontWeight: 600,
-                fontSize: 15,
+                fontWeight: 700,
+                fontSize: 16,
                 color: '#000',
                 fontVariationSettings: '"wdth" 100',
                 whiteSpace: 'nowrap',
-                boxShadow: '0 4px 14px rgba(0, 162, 255, 0.4)',
+                boxShadow: '0 6px 18px rgba(0, 162, 255, 0.45)',
                 zIndex: 20,
                 border: 'none',
               }}
             >
               GET STARTED
             </button>
-
 
             {/* ── Reminders Card (Animates FIRST and attaches) ──────── */}
             <div
@@ -891,4 +976,5 @@ export default function HomePage() {
     </>
   );
 }
+
 
