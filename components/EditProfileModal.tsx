@@ -169,19 +169,21 @@ export default function EditProfileModal({
         throw new Error(data.error || 'Failed to update profile');
       }
 
-      // The server saved the avatar. Use the returned avatarUrl (could be /uploads/... or base64).
-      const savedAvatarUrl = data.avatarUrl || formData.avatarUrl || '';
+      // The server saved the avatar. Use the safe returned avatarUrl
+      const memberId = (session?.user as any)?.id || data._id || data.id;
+      const safeUrl =
+        data.avatarUrl && !data.avatarUrl.startsWith('data:')
+          ? data.avatarUrl
+          : `/api/members/${memberId}/avatar?v=${Date.now()}`;
 
       // Update avatar preview immediately so it shows right away
-      if (savedAvatarUrl) {
-        setAvatarPreview(savedAvatarUrl);
-      }
+      setAvatarPreview(formData.avatarUrl || safeUrl);
 
-      // Synchronize with NextAuth Session — trigger a DB re-fetch via jwt callback
+      // Synchronize with NextAuth Session — pass only safe URL to avoid cookie overflow
       await updateSession({
         user: {
           name: data.name,
-          avatarUrl: savedAvatarUrl,
+          avatarUrl: safeUrl,
           role: data.role,
           profileComplete: true,
         },
@@ -189,7 +191,7 @@ export default function EditProfileModal({
 
       setSuccessMsg('Profile updated successfully!');
       if (onProfileUpdated) {
-        onProfileUpdated({ ...data, avatarUrl: savedAvatarUrl });
+        onProfileUpdated({ ...data, avatarUrl: safeUrl });
       }
 
       setTimeout(() => {

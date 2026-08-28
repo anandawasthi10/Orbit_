@@ -30,11 +30,23 @@ async function tryWriteAvatarToDisk(
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
 
+    // Clean up previous avatar files for this member with different extensions
+    const possibleExts = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg', 'ico'];
+    for (const otherExt of possibleExts) {
+      const oldPath = path.join(uploadsDir, `avatar-${memberId}.${otherExt}`);
+      if (fs.existsSync(oldPath)) {
+        try {
+          fs.unlinkSync(oldPath);
+        } catch (_) {}
+      }
+    }
+
     const fileName = `avatar-${memberId}.${ext}`;
     const filePath = path.join(uploadsDir, fileName);
     fs.writeFileSync(filePath, buffer);
     return `/uploads/${fileName}?v=${Date.now()}`;
-  } catch (_) {
+  } catch (err) {
+    console.error('tryWriteAvatarToDisk error:', err);
     return null;
   }
 }
@@ -55,6 +67,12 @@ export async function GET(req: NextRequest) {
     }
 
     const memberDoc = member.toJSON ? member.toJSON() : { ...member };
+    const memberId = (session.user as any).id;
+
+    if (memberDoc.avatarUrl && (memberDoc.avatarUrl.startsWith('data:') || memberDoc.avatarUrl.length > 300)) {
+      memberDoc.avatarUrl = `/api/members/${memberId}/avatar?v=${Date.now()}`;
+    }
+
     return NextResponse.json(memberDoc);
   } catch (error: any) {
     console.error('GET /api/members/me error:', error);
@@ -101,23 +119,25 @@ export async function PATCH(req: NextRequest) {
     if (bio !== undefined) updateFields.bio = bio.trim();
     updateFields.skills = parsedSkills;
 
-    if (avatarUrl && avatarUrl.startsWith('data:image/')) {
-      const matches = avatarUrl.match(/^data:image\/([a-zA-Z0-9]+);base64,(.+)$/);
-      if (matches) {
-        const rawExt = matches[1].toLowerCase();
-        const ext = rawExt === 'jpeg' ? 'jpg' : rawExt;
-        const allowedExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+    if (avatarUrl && typeof avatarUrl === 'string' && avatarUrl.trim().toLowerCase().startsWith('data:image/')) {
+      const commaIndex = avatarUrl.indexOf(',');
+      if (commaIndex !== -1) {
+        const header = avatarUrl.substring(0, commaIndex);
+        const base64Data = avatarUrl.substring(commaIndex + 1);
+        const mimeMatch = header.match(/data:image\/([a-zA-Z0-9+.-]+)/i);
+        let ext = mimeMatch ? mimeMatch[1].toLowerCase() : 'png';
+        if (ext === 'jpeg') ext = 'jpg';
+        if (ext.includes('svg')) ext = 'svg';
 
+        const allowedExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg', 'ico'];
         if (allowedExtensions.includes(ext)) {
-          // 1. Try to write to disk (works in local dev, skipped on Vercel)
-          const diskUrl = await tryWriteAvatarToDisk(matches[2], ext, memberId);
+          // 1. Try to write to disk (works in local dev & persistent server)
+          const diskUrl = await tryWriteAvatarToDisk(base64Data, ext, memberId);
 
           if (diskUrl) {
-            // Local dev: use file URL
             updateFields.avatarUrl = diskUrl;
           } else {
-            // Vercel/serverless: store as small data URL in MongoDB directly
-            // Keep the full base64 in MongoDB so it survives across sessions
+            // Serverless fallback: store in database
             updateFields.avatarUrl = avatarUrl;
           }
         }
@@ -138,20 +158,15 @@ export async function PATCH(req: NextRequest) {
 
     const updatedDoc = updatedMember.toJSON ? updatedMember.toJSON() : { ...updatedMember };
 
-    // Return the saved avatarUrl - if it was base64, strip it from the JSON response
-    // but keep it in the database. The client can use the session update with the real URL.
-    const responseDoc = {
+    const safeDoc = {
       ...updatedDoc,
-      // Only expose actual URL or empty string, never raw base64 in response body
       avatarUrl:
-        updatedDoc.avatarUrl && !updatedDoc.avatarUrl.startsWith('data:')
-          ? updatedDoc.avatarUrl
-          : updatedDoc.avatarUrl?.startsWith('data:')
-          ? updatedDoc.avatarUrl // Keep it so the client can show the preview
-          : '',
+        updatedDoc.avatarUrl && (updatedDoc.avatarUrl.startsWith('data:') || updatedDoc.avatarUrl.length > 300)
+          ? `/api/members/${memberId}/avatar?v=${Date.now()}`
+          : updatedDoc.avatarUrl || '',
     };
 
-    return NextResponse.json(responseDoc);
+    return NextResponse.json(safeDoc);
   } catch (error: any) {
     console.error('PATCH /api/members/me error:', error);
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });

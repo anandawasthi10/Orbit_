@@ -276,6 +276,9 @@ function formatMemberDoc(member: any): IMember {
   delete doc.password;
   doc._id = doc._id || doc.id;
   doc.id = doc._id;
+  if (doc.avatarUrl && (doc.avatarUrl.startsWith('data:') || doc.avatarUrl.length > 300)) {
+    doc.avatarUrl = `/api/members/${doc._id}/avatar`;
+  }
   return doc;
 }
 

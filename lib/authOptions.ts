@@ -4,6 +4,14 @@ import bcrypt from 'bcryptjs';
 import connectDB from '@/lib/db';
 import Member from '@/models/Member';
 
+function safeAvatarUrl(url?: string | null, userId?: string): string {
+  if (!url) return '';
+  if (url.startsWith('data:') || url.length > 300) {
+    return userId ? `/api/members/${userId}/avatar` : '';
+  }
+  return url;
+}
+
 export const authOptions: AuthOptions = {
   providers: [
     CredentialsProvider({
@@ -36,20 +44,17 @@ export const authOptions: AuthOptions = {
               name: credentials.name || inputEmail.split('@')[0],
               email: inputEmail,
               role: defaultRole,
-              avatarUrl: credentials.avatarUrl || '',
+              avatarUrl: safeAvatarUrl(credentials.avatarUrl),
               profileComplete: true,
             });
           } else if (credentials.avatarUrl && !member.avatarUrl) {
             await Member.findByIdAndUpdate(member._id || member.id, {
-              avatarUrl: credentials.avatarUrl,
+              avatarUrl: safeAvatarUrl(credentials.avatarUrl, member._id || member.id),
             });
           }
 
           const userId = member._id ? member._id.toString() : member.id;
-          let avatarUrl = member.avatarUrl || credentials.avatarUrl || '';
-          if (avatarUrl.startsWith('data:')) {
-            avatarUrl = '';
-          }
+          const avatarUrl = safeAvatarUrl(member.avatarUrl || credentials.avatarUrl, userId);
 
           return {
             id: userId,
@@ -80,12 +85,7 @@ export const authOptions: AuthOptions = {
         }
 
         const userId = member._id ? member._id.toString() : member.id;
-
-        // Ensure avatarUrl in token is never a base64 string
-        let avatarUrl = member.avatarUrl || '';
-        if (avatarUrl.startsWith('data:')) {
-          avatarUrl = '';
-        }
+        const avatarUrl = safeAvatarUrl(member.avatarUrl, userId);
 
         return {
           id: userId,
@@ -108,7 +108,7 @@ export const authOptions: AuthOptions = {
         token.email = user.email;
         token.name = user.name;
         token.role = (user as any).role;
-        token.avatarUrl = (user as any).avatarUrl || '';
+        token.avatarUrl = safeAvatarUrl((user as any).avatarUrl, user.id);
         token.profileComplete = (user as any).profileComplete;
       }
 
@@ -117,7 +117,7 @@ export const authOptions: AuthOptions = {
         if (updatePayload.name) token.name = updatePayload.name;
         if (updatePayload.role) token.role = updatePayload.role;
         if (updatePayload.avatarUrl !== undefined) {
-          token.avatarUrl = updatePayload.avatarUrl || '';
+          token.avatarUrl = safeAvatarUrl(updatePayload.avatarUrl, token.id as string);
         }
         if (updatePayload.profileComplete !== undefined) {
           token.profileComplete = updatePayload.profileComplete;
@@ -133,13 +133,18 @@ export const authOptions: AuthOptions = {
             if (freshMember) {
               token.name = freshMember.name || token.name;
               token.role = freshMember.role || token.role;
-              token.avatarUrl = freshMember.avatarUrl || token.avatarUrl;
+              token.avatarUrl = safeAvatarUrl(freshMember.avatarUrl, token.id as string);
               token.profileComplete = freshMember.profileComplete ?? token.profileComplete;
             }
           } catch (_) {
             // Fallback gracefully — keep existing token data
           }
         }
+      }
+
+      // Safeguard: ensure token.avatarUrl is never base64
+      if (typeof token.avatarUrl === 'string' && (token.avatarUrl.startsWith('data:') || token.avatarUrl.length > 300)) {
+        token.avatarUrl = token.id ? `/api/members/${token.id}/avatar` : '';
       }
 
       return token;
@@ -149,7 +154,7 @@ export const authOptions: AuthOptions = {
         (session.user as any).id = token.id;
         session.user.name = token.name;
         (session.user as any).role = (token as any).role || 'Team Member';
-        (session.user as any).avatarUrl = (token as any).avatarUrl || '';
+        (session.user as any).avatarUrl = safeAvatarUrl((token as any).avatarUrl, token.id as string);
         (session.user as any).profileComplete = (token as any).profileComplete;
       }
       return session;

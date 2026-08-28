@@ -87,13 +87,18 @@ export default function OnboardingPage() {
       }
 
       const updatedData = await res.json();
+      const memberId = (session?.user as any)?.id || updatedData._id || updatedData.id;
+      const safeUrl =
+        updatedData.avatarUrl && !updatedData.avatarUrl.startsWith('data:')
+          ? updatedData.avatarUrl
+          : `/api/members/${memberId}/avatar?v=${Date.now()}`;
 
       await updateSession({
         ...session,
         user: {
           ...session?.user,
           name: updatedData.name,
-          avatarUrl: updatedData.avatarUrl,
+          avatarUrl: safeUrl,
           role: updatedData.role,
           profileComplete: true,
         },
