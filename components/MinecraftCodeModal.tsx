@@ -349,12 +349,6 @@ export default function MinecraftCodeModal({
               >
                 [ KEY CODE ]
               </span>
-              <span
-                className="mc-font text-[8px] text-blue-900 font-bold"
-                style={{ textShadow: '1px 1px 0 #ffffff' }}
-              >
-                KEY: ORBITFAMILY
-              </span>
             </div>
 
             <div className="relative">
